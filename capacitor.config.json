@@ -1,0 +1,11 @@
+{
+  "appId": "com.nexus.studentos",
+  "appName": "Nexus",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#f5c15a"
+    }
+  }
+}
