@@ -701,7 +701,7 @@ function drawHome() {
   const todaysAllClasses = store.classes.filter(c => +c.day === dow);
   const classesLeftToday = todaysAllClasses.filter(c => mins(c.start) > nowMins).length;
 
-  document.getElementById('metrics').innerHTML = [
+  const tilesHtml = [
     { label:'On Hand', value: money(totalCash), color: COLORS[4], primary: true },
     { label:'Open Tasks', value: open, color: COLORS[1] },
     { label:'Classes Left Today', value: classesLeftToday, color: COLORS[3] },
@@ -722,36 +722,41 @@ function drawHome() {
     }
   }));
   const spendTotal = Object.values(catTotals).reduce((s,v) => s+v, 0);
-  const spendEl = document.getElementById('spendChart');
-  if (spendEl) {
-    if (!spendTotal) {
-      spendEl.innerHTML = '<div class="empty">No spending recorded yet</div>';
-    } else {
-      let acc = 0;
-      const stops = [];
-      const legend = [];
-      SPEND_CATS.forEach(c => {
-        const amt = catTotals[c.key] || 0;
-        if (!amt) return;
-        const pct = amt / spendTotal;
-        const start = acc * 360;
-        acc += pct;
-        const end = acc * 360;
-        stops.push(`${c.color} ${start}deg ${end}deg`);
-        legend.push(`
-          <div class="pie-legend-row">
-            <span class="pie-dot" style="background:${c.color}"></span>
-            <span class="pie-label">${c.label}</span>
-            <span class="pie-val">${money(amt)} · ${Math.round(pct*100)}%</span>
-          </div>`);
-      });
-      spendEl.innerHTML = `
-        <div class="pie-wrap">
-          <div class="pie" style="background:conic-gradient(${stops.join(', ')});"></div>
-          <div class="pie-legend">${legend.join('')}</div>
-        </div>`;
-    }
+  let spendInner;
+  if (!spendTotal) {
+    spendInner = '<div class="empty">No spending recorded yet</div>';
+  } else {
+    let acc = 0;
+    const stops = [];
+    const legend = [];
+    SPEND_CATS.forEach(c => {
+      const amt = catTotals[c.key] || 0;
+      if (!amt) return;
+      const pct = amt / spendTotal;
+      const start = acc * 360;
+      acc += pct;
+      const end = acc * 360;
+      stops.push(`${c.color} ${start}deg ${end}deg`);
+      legend.push(`
+        <div class="pie-legend-row">
+          <span class="pie-dot" style="background:${c.color}"></span>
+          <span class="pie-label">${c.label}</span>
+          <span class="pie-val">${money(amt)} · ${Math.round(pct*100)}%</span>
+        </div>`);
+    });
+    spendInner = `
+      <div class="pie-wrap">
+        <div class="pie" style="background:conic-gradient(${stops.join(', ')});"></div>
+        <div class="pie-legend">${legend.join('')}</div>
+      </div>`;
   }
+  const chartHtml = `
+    <div class="metric metric-chart">
+      <div class="label">Spending by Category</div>
+      ${spendInner}
+    </div>`;
+
+  document.getElementById('metrics').innerHTML = tilesHtml + chartHtml;
 
   // Today classes
   const todays = store.classes.filter(c => +c.day === dow).sort((a,b)=>mins(a.start)-mins(b.start));
