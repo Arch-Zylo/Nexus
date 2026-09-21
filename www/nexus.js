@@ -694,11 +694,12 @@ function drawHome() {
   const open = store.tasks.filter(t => !t.done).length;
   const up = store.tasks.filter(t => !t.done && daysOut(t.due) >= 0).length;
 
-  // Classes left today: today's classes whose end time hasn't passed yet.
-  // Naturally counts down through the day as each class finishes, and is
-  // 0 on weekends since there are no Sat/Sun classes in the timetable.
+  // Classes left today: today's classes that haven't started yet — an
+  // ongoing class (already started, not yet ended) no longer counts as
+  // "left". Naturally counts down through the day, and is 0 on weekends
+  // since there are no Sat/Sun classes in the timetable.
   const todaysAllClasses = store.classes.filter(c => +c.day === dow);
-  const classesLeftToday = todaysAllClasses.filter(c => mins(c.end) > nowMins).length;
+  const classesLeftToday = todaysAllClasses.filter(c => mins(c.start) > nowMins).length;
 
   document.getElementById('metrics').innerHTML = [
     { label:'On Hand', value: money(totalCash), color: COLORS[4], primary: true },
