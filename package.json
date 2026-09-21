@@ -1,0 +1,23 @@
+{
+  "name": "nexus-student-os",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Nexus — Student OS, packaged as an Android app with Capacitor.",
+  "scripts": {
+    "sync": "cap sync android",
+    "android": "cap open android",
+    "icons": "capacitor-assets generate --android",
+    "build:apk": "cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/local-notifications": "^6.1.0",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/share": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.1.2"
+  }
+}

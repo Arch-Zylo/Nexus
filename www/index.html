@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nexus — Student OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nexus.css">
+</head>
+<body>
+<div id="tosGate" class="tos-gate" hidden>
+  <div class="tos-card">
+    <img src="assets/phoenix.png" alt="" class="tos-logo">
+    <h1>Terms &amp; Conditions</h1>
+    <p class="tos-intro">Please read this before using Nexus for the first time.</p>
+    <div class="tos-body">
+      <h2>1. What Nexus is</h2>
+      <p>Nexus is a local student planner. It runs on your device and is provided as-is for personal, educational use.</p>
+      <h2>2. Your data stays on this device</h2>
+      <p>Classes, tasks, notes, wallet, events, and passwords are stored in this browser/app only. There is no cloud account. Uninstalling the app, clearing site data, or switching devices can erase everything unless you export a backup.</p>
+      <h2>3. Passwords are not encrypted</h2>
+      <p>The Password Manager stores entries on this device in readable form. Do not store passwords here if others can access this phone. Keep the device locked.</p>
+      <h2>4. Notifications</h2>
+      <p>Reminders only work if you grant notification permission. Delivery is not guaranteed when the app is closed or the system restricts background activity.</p>
+      <h2>5. Accuracy</h2>
+      <p>You are responsible for the information you enter (schedules, amounts, due dates). Nexus does not replace official school records or financial advice.</p>
+      <h2>6. Backups</h2>
+      <p>Export regularly from Settings → Backup. We cannot recover data you did not export.</p>
+      <h2>7. Age</h2>
+      <p>If you are under 18, use Nexus with a parent or guardian’s permission where required.</p>
+      <h2>8. Changes</h2>
+      <p>These terms may be updated in future versions. Continued use after an update means you accept the new terms.</p>
+    </div>
+    <label class="tos-check">
+      <input type="checkbox" id="tosAgree">
+      <span>I have read and agree to the Terms &amp; Conditions.</span>
+    </label>
+    <button class="btn btn-gold" id="tosAccept" disabled>Continue</button>
+    <p class="tos-foot">You can read these again anytime in Settings.</p>
+  </div>
+</div>
+<div class="app">
+  <!-- Side rail -->
+  <aside class="rail">
+    <div class="logo">N</div>
+    <nav class="rail-nav">
+      <button class="rail-btn active" data-go="home" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="timetable" title="Timetable">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </button>
+      <button class="rail-btn" data-go="tasks" title="Tasks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </button>
+      <button class="rail-btn" data-go="people" title="People">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </button>
+      <button class="rail-btn" data-go="notes" title="Notes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+      </button>
+      <button class="rail-btn" data-go="wallet" title="Wallet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4h-4z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="config" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </nav>
+    <div class="rail-footer">
+      <button class="theme-toggle" id="themeBtn" title="Toggle theme">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Stage -->
+  <div class="stage">
+    <header class="top">
+      <div class="brand-top">
+        <span class="brand-mark">🐦‍🔥</span>
+        <span class="brand-name">Nexus</span>
+      </div>
+      <div class="top-meta">
+        <span class="pulse"></span>
+        <span id="liveClock"></span>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <section class="view on" id="view-home">
+        <div class="hero">
+          <h1 id="greet">Good evening</h1>
+          <p id="greetSub"></p>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-head"><h2>Spending by Category</h2></div>
+            <div class="panel-body" id="spendChart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Today's Classes</h2></div>
+            <div class="panel-body" id="todayClasses"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Due Soon</h2></div>
+            <div class="panel-body" id="dueSoon"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Upcoming Events</h2></div>
+            <div class="panel-body" id="upcomingEvents"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Coming Up</h2></div>
+            <div class="panel-body" id="comingUp"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Recent</h2></div>
+            <div class="panel-body" id="recentLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TIMETABLE / EVENTS -->
+      <section class="view" id="view-timetable">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1 id="ttPageTitle">Timetable</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-tt-mode="classes">Classes</button>
+              <button type="button" class="tt-mode" data-tt-mode="events">Events</button>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btnAddClass">+ Class</button>
+          <button class="btn btn-gold" id="btnAddEvent" hidden>+ Event</button>
+        </div>
+
+        <!-- Classes mode -->
+        <div id="classesMode">
+          <div class="sheet" id="sheetClass">
+            <input type="hidden" id="c-edit-id" value="">
+            <div class="fields">
+              <div class="field"><label>Subject</label><input id="c-sub" placeholder="e.g. Algorithms" required></div>
+              <div class="field"><label>Room</label><input id="c-room" placeholder="Optional"></div>
+              <div class="field"><label>Instructor</label><input id="c-inst" placeholder="Optional"></div>
+              <div class="field"><label>Day</label>
+                <select id="c-day">
+                  <option value="1">Monday</option><option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option><option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                </select>
+              </div>
+              <div class="field"><label>Start</label><input type="time" id="c-start" value="09:00"></div>
+              <div class="field"><label>End</label><input type="time" id="c-end" value="10:30"></div>
+              <div class="field wide"><label>Color</label>
+                <div class="color-pick-row">
+                  <input type="color" id="c-color" value="#f5c15a" title="Any color">
+                  <div class="chips" id="c-chips"></div>
+                </div>
+              </div>
+              <div class="field-check"><input type="checkbox" id="c-lab"><label for="c-lab">Lab session</label></div>
+              <div class="field-check"><input type="checkbox" id="c-notify" checked><label for="c-notify">Remind me before this class</label></div>
+              <div class="field wide"><label>Reminder time</label>
+                <select id="c-notify-lead">
+                  <option value="">Use default (set in Settings)</option>
+                  <option value="5">5 minutes before</option>
+                  <option value="10">10 minutes before</option>
+                  <option value="15">15 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="saveClass">Save</button>
+              <button class="btn btn-ghost" id="cancelClass">Cancel</button>
+            </div>
+          </div>
+          <div class="board-wrap"><div class="board" id="board"></div></div>
+        </div>
+
+        <!-- Events mode -->
+        <div id="eventsMode" hidden>
+          <div class="sheet" id="sheetEvent">
+            <input type="hidden" id="e-edit-id" value="">
+            <div class="fields">
+              <div class="field wide"><label>Title</label><input id="e-title" placeholder="e.g. Club meeting, Exam review"></div>
+              <div class="field"><label>Date</label><input type="date" id="e-date"></div>
+              <div class="field"><label>Time</label><input type="time" id="e-time" value="15:00"></div>
+              <div class="field"><label>Location</label><input id="e-loc" placeholder="Optional"></div>
+              <div class="field wide"><label>Notes</label><input id="e-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="saveEvent">Save</button>
+              <button class="btn btn-ghost" id="cancelEvent">Cancel</button>
+            </div>
+          </div>
+          <div class="card-stack" id="eventList"></div>
+        </div>
+      </section>
+
+      <!-- TASKS -->
+      <section class="view" id="view-tasks">
+        <div class="hero">
+          <h1>Tasks</h1>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddTask">+ Task</button>
+        </div>
+        <div class="sheet" id="sheetTask">
+          <input type="hidden" id="t-edit-id" value="">
+          <div class="fields">
+            <div class="field"><label>Title</label><input id="t-title" placeholder="e.g. Portfolio site"></div>
+            <div class="field"><label>Subject</label><input id="t-sub" list="subList" placeholder="Optional"></div>
+            <div class="field"><label>Due</label><input type="date" id="t-due"></div>
+            <div class="field wide"><label>Notes</label><textarea id="t-notes" placeholder="Details…"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveTask">Save</button>
+            <button class="btn btn-ghost" id="cancelTask">Cancel</button>
+            <button class="btn btn-ghost" id="deleteTask" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+        <datalist id="subList"></datalist>
+        <div class="card-stack" id="taskList"></div>
+      </section>
+
+      <!-- PEOPLE -->
+      <section class="view" id="view-people">
+        <div class="hero" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <h1>People</h1>
+          <div class="sort-links" id="peopleSort">
+            <button type="button" class="sort-link on" data-sort="first">Name</button>
+            <button type="button" class="sort-link" data-sort="last">Last name</button>
+            <button type="button" class="sort-link" data-sort="bday">Birthday</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddPerson">+ Person</button>
+        </div>
+        <div class="sheet" id="sheetPerson">
+          <input type="hidden" id="p-edit-id" value="">
+          <div class="fields">
+            <div class="field"><label>First name</label><input id="p-first" placeholder="Niel"></div>
+            <div class="field"><label>Last name</label><input id="p-last" placeholder="Read"></div>
+            <div class="field"><label>Birthday</label><input type="date" id="p-bday"></div>
+            <div class="field wide"><label>Notes</label><textarea id="p-notes" placeholder="Sits front, strong in math…"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="savePerson">Save</button>
+            <button class="btn btn-ghost" id="cancelPerson">Cancel</button>
+            <button class="btn btn-ghost" id="deletePerson" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+        <div class="card-stack" id="peopleList"></div>
+      </section>
+
+      <!-- NOTES -->
+      <section class="view" id="view-notes">
+        <div class="hero">
+          <h1>Notes</h1>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddNote">+ Note</button>
+        </div>
+        <div class="sheet" id="sheetNote">
+          <input type="hidden" id="n-edit-id" value="">
+          <div class="fields">
+            <div class="field wide"><label>Title</label><input id="n-title" placeholder="Title"></div>
+            <div class="field wide"><label>Body</label><textarea id="n-body" placeholder="Write something…"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveNote">Save</button>
+            <button class="btn btn-ghost" id="cancelNote">Cancel</button>
+            <button class="btn btn-ghost" id="deleteNote" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+        <div class="mosaic" id="noteGrid"></div>
+      </section>
+
+      <!-- WALLET -->
+      <section class="view" id="view-wallet">
+        <div class="money-hero">
+          <h1 style="font-size:1.4rem;font-weight:700;">Wallet</h1>
+          <div>
+            <div style="font-size:0.7rem;color:var(--mist);text-transform:uppercase;letter-spacing:0.05em;">Total</div>
+            <div class="money-total" id="walletTotal">$0.00</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddAcc">+ Account</button>
+        </div>
+        <div class="sheet" id="sheetAcc">
+          <div class="fields">
+            <div class="field"><label>Name</label><input id="a-name" placeholder="Wallet / GCash"></div>
+            <div class="field"><label>Type</label>
+              <select id="a-type">
+                <option value="cash">Cash / On Hand</option>
+                <option value="save">Savings</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="field"><label>Starting balance</label><input type="number" id="a-start" step="0.01" placeholder="0.00"></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveAcc">Add</button>
+            <button class="btn btn-ghost" id="cancelAcc">Cancel</button>
+          </div>
+        </div>
+        <div id="accList"></div>
+        <div id="loansSection" style="margin-top:24px;display:none;">
+          <h2 style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:12px;">Loaned out</h2>
+          <div id="loansList"></div>
+        </div>
+      </section>
+
+      <!-- CONFIG -->
+      <section class="view" id="view-config">
+        <div class="hero">
+          <h1>Settings</h1>
+        </div>
+
+        <div id="settingsMain">
+        <p class="set-group-label">Appearance</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="theme">
+            <span class="set-label">Theme</span>
+            <span class="set-value" id="themeValue">Night</span>
+          </button>
+          <button type="button" class="set-row" data-set="style">
+            <span class="set-label">Style</span>
+            <span class="set-value" id="styleValue">Soft</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Profile</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="name">
+            <span class="set-label">Your name</span>
+            <span class="set-value" id="nameValue">Not set</span>
+          </button>
+          <button type="button" class="set-row" data-set="school">
+            <span class="set-label">School</span>
+            <span class="set-value" id="schoolValue">Not set</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Security</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="passwords">
+            <span class="set-label">Password Manager</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Preferences</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="currency">
+            <span class="set-label">Currency</span>
+            <span class="set-value" id="currencyValue">$</span>
+          </button>
+          <button type="button" class="set-row" data-set="timefmt">
+            <span class="set-label">Time format</span>
+            <span class="set-value" id="timefmtValue">12-hour</span>
+          </button>
+          <button type="button" class="set-row" data-set="notify">
+            <span class="set-label">Due-task reminders</span>
+            <span class="set-value" id="notifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotify">
+            <span class="set-label">Timetable reminders</span>
+            <span class="set-value" id="classNotifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotifylead">
+            <span class="set-label">Default reminder time</span>
+            <span class="set-value" id="classNotifyLeadValue">10 min before</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Tools</p>
+        <div class="set-list">
+          <div class="set-row set-row-split">
+            <span class="set-label">Backup</span>
+            <span class="set-actions">
+              <button type="button" class="set-action" data-set="export">Export</button>
+              <span class="set-sep">·</span>
+              <button type="button" class="set-action" data-set="import">Import</button>
+            </span>
+          </div>
+          <button type="button" class="set-row" data-set="clearlog">
+            <span class="set-label">Clear activity log</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Danger zone</p>
+        <div class="set-list">
+          <button type="button" class="set-row set-danger" data-set="wipe">
+            <span class="set-label">Wipe all data</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">About</p>
+        <div class="set-list">
+          <div class="set-row set-row-static">
+            <span class="set-label">App</span>
+            <span class="set-value">Nexus Student OS</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Version</span>
+            <span class="set-value">1.2.0</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Storage</span>
+            <span class="set-value" id="storageValue">—</span>
+          </div>
+          <button type="button" class="set-row" data-set="terms">
+            <span class="set-label">Terms &amp; Conditions</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <input type="file" id="importFile" accept="application/json" hidden>
+        <p id="dataMsg" style="font-size:0.8rem;margin-top:12px;color:var(--mint);"></p>
+        </div><!-- /settingsMain -->
+
+        <!-- Password panel (shown when Password Manager is tapped) -->
+        <div id="passPanel" class="set-panel" hidden>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <button type="button" class="sort-link" id="passBack">‹ Back</button>
+            <button class="btn btn-gold" id="btnAddPass" style="padding:8px 14px;font-size:0.82rem;">+ Add</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
+          <div class="sheet" id="sheetPass">
+            <input type="hidden" id="pw-edit-id" value="">
+            <div class="fields" style="grid-template-columns:1fr;">
+              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
+              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
+              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
+              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="savePass">Save</button>
+              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
+              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+            </div>
+          </div>
+          <div id="passList"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="backdrop" id="backdrop">
+  <div class="dialog">
+    <div class="dialog-head">
+      <h2 id="dlgTitle">History</h2>
+      <button class="btn-icon" id="dlgClose">✕</button>
+    </div>
+    <div class="dialog-body" id="dlgBody"></div>
+  </div>
+</div>
+<script src="nexus.js"></script>
+</body>
+</html>

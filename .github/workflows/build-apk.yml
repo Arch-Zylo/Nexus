@@ -1,0 +1,157 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate app icons from assets/icon.png
+        run: npx capacitor-assets generate --android
+
+      - name: Configure native Android launch screen
+        shell: bash
+        run: |
+          RES="android/app/src/main/res"
+          VALUES="$RES/values"
+          VALUES_V31="$RES/values-v31"
+          DRAWABLE_NODPI="$RES/drawable-nodpi"
+          DRAWABLE="$RES/drawable"
+
+          mkdir -p "$VALUES" "$VALUES_V31" "$DRAWABLE_NODPI" "$DRAWABLE"
+
+          # Use the transparent Axis A logo itself for the native launch screen.
+          # This avoids the gray/black square produced by using Capacitor's generated splash drawable.
+          cp assets/icon.png "$DRAWABLE_NODPI/nexus_splash_logo.png"
+
+          cat > "$VALUES/splash_colors.xml" <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="splash_background">#000000</color>
+          </resources>
+          XML
+
+          # Android 11 and below: pure black background with the transparent A logo centered.
+          cat > "$DRAWABLE/launch_background.xml" <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@color/splash_background" />
+              <item>
+                  <bitmap
+                      android:src="@drawable/nexus_splash_logo"
+                      android:gravity="center" />
+              </item>
+          </layer-list>
+          XML
+
+          # Capacitor's generated launch theme normally uses @drawable/splash.
+          # Replace only that background so the native launch screen uses our black layer.
+          if [ -f "$VALUES/styles.xml" ]; then
+            sed -i 's#@drawable/splash#@drawable/launch_background#g' "$VALUES/styles.xml"
+          fi
+
+          # Android 12+: use the platform splash screen with a black background
+          # and the transparent A logo as the centered launch icon.
+          cat > "$VALUES_V31/styles.xml" <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+                  <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+                  <item name="android:windowSplashScreenAnimatedIcon">@drawable/nexus_splash_logo</item>
+                  <item name="android:windowBackground">@color/splash_background</item>
+              </style>
+          </resources>
+          XML
+
+      - name: Sync web assets + plugins into the Android project
+        run: npx cap sync android
+
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set — add it in repo Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/nexus-release.keystore
+
+      - name: Configure release signing
+        run: |
+          python3 - <<'PY'
+          import re
+
+          path = "android/app/build.gradle"
+          with open(path) as f:
+              content = f.read()
+
+          signing_block = """
+              signingConfigs {
+                  release {
+                      storeFile file("nexus-release.keystore")
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+          """
+
+          if "signingConfigs" not in content:
+              content = content.replace("android {", "android {" + signing_block, 1)
+
+          if "signingConfig signingConfigs.release" not in content:
+              content, n = re.subn(
+                  r"(buildTypes\s*\{\s*release\s*\{)",
+                  r"\1\n            signingConfig signingConfigs.release",
+                  content,
+                  count=1,
+              )
+              if n == 0:
+                  raise SystemExit("Could not find buildTypes { release { ... } } block to patch.")
+
+          with open(path, "w") as f:
+              f.write(content)
+          PY
+
+      - name: Grant execute permission to Gradle wrapper
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
