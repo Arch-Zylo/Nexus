@@ -14,14 +14,68 @@ const DAYS_FULL = ['','Monday','Tuesday','Wednesday','Thursday','Friday'];
 
 // Fixed spending categories for expense transactions + the Home pie chart.
 const SPEND_CATS = [
-  { key: 'medical', label: 'Medical', color: COLORS[1] },
-  { key: 'food', label: 'Food', color: COLORS[0] },
-  { key: 'snack', label: 'Snack', color: COLORS[5] },
-  { key: 'transportation', label: 'Transportation', color: COLORS[3] },
-  { key: 'school', label: 'School Payment', color: COLORS[2] },
-  { key: 'other', label: 'Other', color: COLORS[7] },
+  { key: 'medical', label: 'Medical', color: '#ff3b3b' },
+  { key: 'food', label: 'Food', color: '#ffd400' },
+  { key: 'snack', label: 'Snack', color: '#ff9500' },
+  { key: 'transportation', label: 'Transportation', color: '#1e6fff' },
+  { key: 'school', label: 'School Payment', color: '#7b2fe0' },
+  { key: 'other', label: 'Other', color: '#00b358' },
 ];
 const SPEND_CAT_LABEL = Object.fromEntries(SPEND_CATS.map(c => [c.key, c.label]));
+
+// Expenses-only category breakdown (amt < 0), loans excluded since they're
+// tracked separately as receivables, not a spending category. Shared by
+// the compact "Spending" metric tile and its full detail dialog.
+function computeSpendBreakdown() {
+  const catTotals = {};
+  store.accounts.forEach(a => (a.tx||[]).forEach(t => {
+    if (t.amt < 0 && !t.loan) {
+      const key = SPEND_CAT_LABEL[t.cat] ? t.cat : 'other';
+      catTotals[key] = (catTotals[key] || 0) + Math.abs(t.amt);
+    }
+  }));
+  const spendTotal = Object.values(catTotals).reduce((s,v) => s+v, 0);
+  let acc = 0;
+  const stops = [];
+  const legend = [];
+  SPEND_CATS.forEach(c => {
+    const amt = catTotals[c.key] || 0;
+    if (!amt) return;
+    const pct = amt / spendTotal;
+    const start = acc * 360;
+    acc += pct;
+    const end = acc * 360;
+    stops.push(`${c.color} ${start}deg ${end}deg`);
+    legend.push(`
+      <div class="pie-legend-row">
+        <span class="pie-dot" style="background:${c.color}"></span>
+        <span class="pie-label">${c.label}</span>
+        <span class="pie-val">${money(amt)} · ${Math.round(pct*100)}%</span>
+      </div>`);
+  });
+  return { catTotals, spendTotal, stops, legendHtml: legend.join('') };
+}
+
+function showSpendingDetail() {
+  const spend = computeSpendBreakdown();
+  const dlg = document.querySelector('.dialog');
+  if (dlg) dlg.classList.add('dialog-wide');
+  document.getElementById('dlgTitle').textContent = 'Spending by Category';
+  document.getElementById('dlgBody').innerHTML = spend.spendTotal
+    ? `<div class="pie-wrap">
+         <div class="pie" style="background:conic-gradient(${spend.stops.join(', ')});">
+           <div class="donut-hole">
+             <div class="donut-center">
+               <div class="donut-total">${money(spend.spendTotal)}</div>
+               <div class="donut-sub">spent</div>
+             </div>
+           </div>
+         </div>
+         <div class="pie-legend">${spend.legendHtml}</div>
+       </div>`
+    : '<div class="empty">No spending recorded yet</div>';
+  document.getElementById('backdrop').classList.add('open');
+}
 
 let store = load();
 let pickColor = COLORS[0];
@@ -702,61 +756,30 @@ function drawHome() {
   const classesLeftToday = todaysAllClasses.filter(c => mins(c.start) > nowMins).length;
 
   const tilesHtml = [
-    { label:'On Hand', value: money(totalCash), color: COLORS[4], primary: true },
-    { label:'Open Tasks', value: open, color: COLORS[1] },
-    { label:'Classes Left Today', value: classesLeftToday, color: COLORS[3] },
+    { label:'On Hand', value: money(totalCash), color: COLORS[4], primary: true, cls: '' },
+    { label:'Open Tasks', value: open, color: COLORS[1], cls: 'metric-opentasks' },
+    { label:'Classes Left', value: classesLeftToday, color: COLORS[3], cls: 'metric-classesleft' },
   ].map(m => `
-    <div class="metric${m.primary ? ' primary' : ''}">
+    <div class="metric${m.primary ? ' primary' : ''}${m.cls ? ' '+m.cls : ''}">
       <div class="accent" style="background:${m.color}"></div>
       <div class="label">${m.label}</div>
       <div class="value">${m.value}</div>
     </div>`).join('');
 
-  // Spending by category — expenses only (amt < 0), loans excluded since
-  // they're tracked separately as receivables, not a spending category.
-  const catTotals = {};
-  store.accounts.forEach(a => (a.tx||[]).forEach(t => {
-    if (t.amt < 0 && !t.loan) {
-      const key = SPEND_CAT_LABEL[t.cat] ? t.cat : 'other';
-      catTotals[key] = (catTotals[key] || 0) + Math.abs(t.amt);
-    }
-  }));
-  const spendTotal = Object.values(catTotals).reduce((s,v) => s+v, 0);
-  let spendInner;
-  if (!spendTotal) {
-    spendInner = '<div class="empty">No spending recorded yet</div>';
-  } else {
-    let acc = 0;
-    const stops = [];
-    const legend = [];
-    SPEND_CATS.forEach(c => {
-      const amt = catTotals[c.key] || 0;
-      if (!amt) return;
-      const pct = amt / spendTotal;
-      const start = acc * 360;
-      acc += pct;
-      const end = acc * 360;
-      stops.push(`${c.color} ${start}deg ${end}deg`);
-      legend.push(`
-        <div class="pie-legend-row">
-          <span class="pie-dot" style="background:${c.color}"></span>
-          <span class="pie-label">${c.label}</span>
-          <span class="pie-val">${money(amt)} · ${Math.round(pct*100)}%</span>
-        </div>`);
-    });
-    spendInner = `
-      <div class="pie-wrap">
-        <div class="pie" style="background:conic-gradient(${stops.join(', ')});"></div>
-        <div class="pie-legend">${legend.join('')}</div>
-      </div>`;
-  }
-  const chartHtml = `
-    <div class="metric metric-chart">
-      <div class="label">Spending by Category</div>
-      ${spendInner}
+  const spend = computeSpendBreakdown();
+  const spendPie = spend.spendTotal
+    ? `background:conic-gradient(${spend.stops.join(', ')});`
+    : `background:${COLORS[7]};opacity:0.25;`;
+  const centerHtml = spend.spendTotal
+    ? `<div class="donut-center"><div class="donut-total">${money(spend.spendTotal)}</div><div class="donut-sub">spent</div></div>`
+    : `<div class="donut-center"><div class="donut-sub">No spend</div></div>`;
+  const spendTile = `
+    <div class="metric metric-spend" id="metricSpend" style="cursor:pointer;" title="Spending by category">
+      <div class="spend-pie" style="${spendPie}"><div class="donut-hole">${centerHtml}</div></div>
     </div>`;
 
-  document.getElementById('metrics').innerHTML = tilesHtml + chartHtml;
+  document.getElementById('metrics').innerHTML = tilesHtml + spendTile;
+  document.getElementById('metricSpend').onclick = () => showSpendingDetail();
 
   // Today classes
   const todays = store.classes.filter(c => +c.day === dow).sort((a,b)=>mins(a.start)-mins(b.start));
@@ -1702,8 +1725,13 @@ document.getElementById('saveAcc').onclick = () => {
   drawWallet(); drawHome();
 };
 
-document.getElementById('dlgClose').onclick = () => document.getElementById('backdrop').classList.remove('open');
-document.getElementById('backdrop').onclick = e => { if (e.target.id === 'backdrop') e.target.classList.remove('open'); };
+function closeDialog() {
+  document.getElementById('backdrop').classList.remove('open');
+  const dlg = document.querySelector('.dialog');
+  if (dlg) dlg.classList.remove('dialog-wide');
+}
+document.getElementById('dlgClose').onclick = closeDialog;
+document.getElementById('backdrop').onclick = e => { if (e.target.id === 'backdrop') closeDialog(); };
 
 /* ---------- DATA ---------- */
 document.getElementById('importFile').onchange = e => {
