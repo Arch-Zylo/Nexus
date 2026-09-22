@@ -23,13 +23,13 @@ const SPEND_CATS = [
 ];
 const SPEND_CAT_LABEL = Object.fromEntries(SPEND_CATS.map(c => [c.key, c.label]));
 
-// Expenses-only category breakdown (amt < 0), loans excluded since they're
-// tracked separately as receivables, not a spending category. Shared by
+// Expenses-only category breakdown (amt < 0). Loans and internal transfers
+// are excluded — they move your own money, they aren't spending. Shared by
 // the compact "Spending" metric tile and its full detail dialog.
 function computeSpendBreakdown() {
   const catTotals = {};
   store.accounts.forEach(a => (a.tx||[]).forEach(t => {
-    if (t.amt < 0 && !t.loan) {
+    if (t.amt < 0 && !t.loan && !t.transfer) {
       const key = SPEND_CAT_LABEL[t.cat] ? t.cat : 'other';
       catTotals[key] = (catTotals[key] || 0) + Math.abs(t.amt);
     }
@@ -1530,6 +1530,10 @@ document.getElementById('deleteNote').onclick = () => {
 };
 
 /* ---------- WALLET ---------- */
+function accTypeLabel(t) {
+  return t === 'cash' ? 'On Hand' : t === 'save' ? 'Savings' : 'Other';
+}
+
 function drawWallet() {
   const list = document.getElementById('accList');
   let total = 0;
@@ -1537,6 +1541,15 @@ function drawWallet() {
   const el = document.getElementById('walletTotal');
   el.textContent = money(total);
   el.classList.toggle('neg', total < 0);
+
+  // Transfer needs at least 2 accounts — hide/disable otherwise
+  const btnXfer = document.getElementById('btnTransfer');
+  if (btnXfer) {
+    const canXfer = store.accounts.length >= 2;
+    btnXfer.disabled = !canXfer;
+    btnXfer.style.opacity = canXfer ? '' : '0.4';
+    btnXfer.title = canXfer ? 'Move money between accounts' : 'Add another account to transfer';
+  }
 
   list.innerHTML = store.accounts.length ? store.accounts.map(a => {
     const b = bal(a);
@@ -1649,7 +1662,7 @@ function drawWallet() {
         ? txs.map(t => `
           <div class="tx-row">
             <span class="tx-amt ${t.amt>=0?'pos':'neg'}">${t.amt>=0?'+':''}${money(t.amt)}</span>
-            <span class="tx-desc">${esc(t.desc)}${t.cat && SPEND_CAT_LABEL[t.cat] ? ' · ' + esc(SPEND_CAT_LABEL[t.cat]) : ''}</span>
+            <span class="tx-desc">${esc(t.desc)}${t.cat && SPEND_CAT_LABEL[t.cat] && !t.transfer && !t.loan ? ' · ' + esc(SPEND_CAT_LABEL[t.cat]) : ''}</span>
             <span class="tx-date">${t.date}</span>
           </div>`).join('')
         : '<div class="empty">No transactions</div>';
@@ -1709,7 +1722,10 @@ function drawWallet() {
   }
 }
 
-document.getElementById('btnAddAcc').onclick = () => document.getElementById('sheetAcc').classList.toggle('open');
+document.getElementById('btnAddAcc').onclick = () => {
+  document.getElementById('sheetTransfer').classList.remove('open');
+  document.getElementById('sheetAcc').classList.toggle('open');
+};
 document.getElementById('cancelAcc').onclick = () => document.getElementById('sheetAcc').classList.remove('open');
 document.getElementById('saveAcc').onclick = () => {
   const name = document.getElementById('a-name').value.trim() || 'Account';
@@ -1722,6 +1738,69 @@ document.getElementById('saveAcc').onclick = () => {
   document.getElementById('sheetAcc').classList.remove('open');
   document.getElementById('a-name').value = '';
   document.getElementById('a-start').value = '';
+  drawWallet(); drawHome();
+};
+
+function fillTransferSelects(preferFromId) {
+  const fromSel = document.getElementById('xf-from');
+  const toSel = document.getElementById('xf-to');
+  const opts = store.accounts.map(a =>
+    `<option value="${a.id}">${esc(a.name)} (${accTypeLabel(a.type)}) · ${money(bal(a))}</option>`
+  ).join('');
+  fromSel.innerHTML = opts;
+  toSel.innerHTML = opts;
+  if (preferFromId) fromSel.value = preferFromId;
+  // Default To to a different account than From
+  const fromId = fromSel.value;
+  const other = store.accounts.find(a => a.id !== fromId);
+  if (other) toSel.value = other.id;
+}
+function syncTransferToOptions() {
+  const fromId = document.getElementById('xf-from').value;
+  const toSel = document.getElementById('xf-to');
+  const curTo = toSel.value;
+  toSel.innerHTML = store.accounts
+    .filter(a => a.id !== fromId)
+    .map(a => `<option value="${a.id}">${esc(a.name)} (${accTypeLabel(a.type)}) · ${money(bal(a))}</option>`)
+    .join('');
+  if ([...toSel.options].some(o => o.value === curTo)) toSel.value = curTo;
+}
+
+document.getElementById('btnTransfer').onclick = () => {
+  if (store.accounts.length < 2) return;
+  document.getElementById('sheetAcc').classList.remove('open');
+  const sheet = document.getElementById('sheetTransfer');
+  const opening = !sheet.classList.contains('open');
+  if (opening) {
+    fillTransferSelects();
+    document.getElementById('xf-amt').value = '';
+    document.getElementById('xf-note').value = '';
+    syncTransferToOptions();
+  }
+  sheet.classList.toggle('open');
+};
+document.getElementById('xf-from').onchange = syncTransferToOptions;
+document.getElementById('cancelTransfer').onclick = () => document.getElementById('sheetTransfer').classList.remove('open');
+document.getElementById('saveTransfer').onclick = () => {
+  const fromId = document.getElementById('xf-from').value;
+  const toId = document.getElementById('xf-to').value;
+  const amt = parseFloat(document.getElementById('xf-amt').value) || 0;
+  const note = document.getElementById('xf-note').value.trim();
+  if (amt <= 0 || !fromId || !toId || fromId === toId) return;
+  const src = store.accounts.find(x => x.id === fromId);
+  const dst = store.accounts.find(x => x.id === toId);
+  if (!src || !dst) return;
+  // Allow overdraft — same rule as regular expenses (negative balances ok)
+  src.tx = src.tx || [];
+  dst.tx = dst.tx || [];
+  const srcDesc = note ? `Transfer to ${dst.name}: ${note}` : `Transfer to ${dst.name}`;
+  const dstDesc = note ? `Transfer from ${src.name}: ${note}` : `Transfer from ${src.name}`;
+  src.tx.push({ id: id(), desc: srcDesc, amt: -amt, date: today(), transfer: true });
+  dst.tx.push({ id: id(), desc: dstDesc, amt: amt, date: today(), transfer: true });
+  save(); log(`⇄ ${money(amt)} · ${src.name} → ${dst.name}`, COLORS[2]);
+  document.getElementById('sheetTransfer').classList.remove('open');
+  document.getElementById('xf-amt').value = '';
+  document.getElementById('xf-note').value = '';
   drawWallet(); drawHome();
 };
 

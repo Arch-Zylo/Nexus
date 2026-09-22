@@ -289,6 +289,7 @@
         </div>
         <div class="actions">
           <button class="btn btn-gold" id="btnAddAcc">+ Account</button>
+          <button class="btn btn-ghost" id="btnTransfer" title="Move money between accounts">⇄ Transfer</button>
         </div>
         <div class="sheet" id="sheetAcc">
           <div class="fields">
@@ -305,6 +306,18 @@
           <div class="form-foot">
             <button class="btn btn-gold" id="saveAcc">Add</button>
             <button class="btn btn-ghost" id="cancelAcc">Cancel</button>
+          </div>
+        </div>
+        <div class="sheet" id="sheetTransfer">
+          <div class="fields">
+            <div class="field"><label>From</label><select id="xf-from"></select></div>
+            <div class="field"><label>To</label><select id="xf-to"></select></div>
+            <div class="field"><label>Amount</label><input type="number" id="xf-amt" step="0.01" min="0" placeholder="0.00"></div>
+            <div class="field wide"><label>Note (optional)</label><input id="xf-note" placeholder="e.g. Move to checking"></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveTransfer">Transfer</button>
+            <button class="btn btn-ghost" id="cancelTransfer">Cancel</button>
           </div>
         </div>
         <div id="accList"></div>
