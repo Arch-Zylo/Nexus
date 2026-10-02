@@ -187,6 +187,7 @@ function log(msg, color) {
 /* Theme — dark themes only (no light mode) */
 const THEMES = [
   { id: 'night', label: 'Night' },
+  { id: 'circuit', label: 'Circuit' },
   { id: 'ocean', label: 'Ocean' },
   { id: 'ember', label: 'Ember' },
   { id: 'forest', label: 'Forest' },
@@ -201,6 +202,7 @@ function applyTheme(t) {
   if (t === 'day' || !THEMES.find(x => x.id === t)) t = 'night';
   store.theme = t;
   document.documentElement.setAttribute('data-theme', t === 'night' ? '' : t);
+  if (window.CircuitBG) { if (t === 'circuit') window.CircuitBG.start(); else window.CircuitBG.stop(); }
   const tv = document.getElementById('themeValue');
   if (tv) tv.textContent = THEMES.find(x => x.id === t)?.label || 'Night';
   save();

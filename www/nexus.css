@@ -1250,3 +1250,42 @@ a { color: inherit; text-decoration: none; }
 .tos-card .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .tos-foot { text-align: center; font-size: 0.72rem; color: var(--mist); margin-top: 10px; }
 
+
+/* Circuit — PCB board with animated traces (matches the portfolio theme) */
+[data-theme="circuit"] {
+  --void: #0b2622;
+  --ink: rgba(10, 36, 32, 0.86);
+  --panel: rgba(14, 47, 42, 0.9);
+  --panel-2: #14403a;
+  --line: rgba(63, 174, 147, 0.5);
+  --line-soft: rgba(63, 174, 147, 0.28);
+  --fog: #9dbdb2;
+  --mist: #6f9a8d;
+  --snow: #e8f1e6;
+  --gold: #f3c969;
+  --gold-dim: rgba(243, 201, 105, 0.14);
+  --mint: #3fae93;
+  --coral: #ff7a6b;
+  --sky: #6bc5d9;
+  --lilac: #d99a4e;
+  --cb-board: #0b2622;
+  --cb-trace: #3fae93;
+  --cb-pulse: #f3c969;
+  --cb-pad: #d99a4e;
+}
+#circuitBg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; }
+[data-theme="circuit"] #circuitBg { display: block; }
+.app { position: relative; z-index: 1; }
+[data-theme="circuit"] .rail,
+[data-theme="circuit"] .top { backdrop-filter: blur(8px); }
+[data-theme="circuit"] .card { position: relative; backdrop-filter: blur(6px); }
+[data-theme="circuit"] .card::before,
+[data-theme="circuit"] .card::after {
+  content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cb-board); border: 2px solid var(--cb-pad); pointer-events: none;
+}
+[data-theme="circuit"] .card::before { top: -5px; left: 16px; }
+[data-theme="circuit"] .card::after { bottom: -5px; right: 16px; }
+[data-theme="circuit"] .sheet { background: #0e2f2a; }
+[data-theme="circuit"] .logo { box-shadow: 0 4px 16px rgba(243, 201, 105, 0.25); }
+[data-theme="circuit"] .stage { background: transparent; }
