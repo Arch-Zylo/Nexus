@@ -13,7 +13,7 @@ const DAYS = ['','Mon','Tue','Wed','Thu','Fri'];
 const DAYS_FULL = ['','Monday','Tuesday','Wednesday','Thursday','Friday'];
 
 // Fixed spending categories for expense transactions + the Home pie chart.
-const SPEND_CATS = [
+const BASE_SPEND_CATS = [
   { key: 'medical', label: 'Medical', color: '#ff3b3b' },
   { key: 'food', label: 'Food', color: '#ffd400' },
   { key: 'snack', label: 'Snack', color: '#ff9500' },
@@ -21,7 +21,47 @@ const SPEND_CATS = [
   { key: 'school', label: 'School Payment', color: '#7b2fe0' },
   { key: 'other', label: 'Other', color: '#00b358' },
 ];
-const SPEND_CAT_LABEL = Object.fromEntries(SPEND_CATS.map(c => [c.key, c.label]));
+const CAT_PALETTE = ['#e84393', '#00cec9', '#fdcb6e', '#6c5ce7', '#fab1a0', '#55efc4', '#74b9ff', '#e17055'];
+// Built-in categories plus any the user added (stored in store.customCats).
+function spendCats() { return BASE_SPEND_CATS.concat(store.customCats || []); }
+function spendCatLabel(key) { const c = spendCats().find(x => x.key === key); return c ? c.label : ''; }
+function addSpendCategory(name, color) {
+  name = (name || '').trim().replace(/\s+/g, ' ');
+  if (!name) return { ok: false, msg: 'Enter a category name.' };
+  if (name.length > 24) return { ok: false, msg: 'Keep the name under 25 characters.' };
+  if (spendCats().some(c => c.label.toLowerCase() === name.toLowerCase())) return { ok: false, msg: 'That category already exists.' };
+  const cat = { key: 'c_' + id(), label: name, color: /^#[0-9a-f]{6}$/i.test(color) ? color : CAT_PALETTE[(store.customCats || []).length % CAT_PALETTE.length] };
+  store.customCats = (store.customCats || []).concat(cat);
+  save();
+  return { ok: true, cat };
+}
+
+// ---- Auto-reset period for the spending chart ----
+function isoOf(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function periodStart(mode) {
+  const d = parseD(today());
+  if (mode === 'week') { d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); }   // Monday
+  if (mode === 'month') return isoOf(new Date(d.getFullYear(), d.getMonth(), 1));
+  if (mode === 'year') return isoOf(new Date(d.getFullYear(), 0, 1));
+  return '';
+}
+function nextSpendReset(mode) {
+  const d = parseD(today());
+  if (mode === 'week') { d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7); return isoOf(d); }
+  if (mode === 'month') return isoOf(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  if (mode === 'year') return isoOf(new Date(d.getFullYear() + 1, 0, 1));
+  return '';
+}
+// Chart only counts spending on/after this date ('' = everything), from the auto-reset period.
+function spendFrom() { return periodStart(store.spendPeriod || 'all'); }
+// "Reset now" stamps a time; spending logged before it is hidden from the chart (transactions are kept).
+function spendCounts(t) {
+  const from = spendFrom();
+  if (from && (t.date || '') < from) return false;
+  const r = store.spendResetTs || 0;
+  if (r) return t.ts ? t.ts >= r : (t.date || '') > isoOf(new Date(r));
+  return true;
+}
 
 // Expenses-only category breakdown (amt < 0). Loans and internal transfers
 // are excluded — they move your own money, they aren't spending. Shared by
@@ -29,8 +69,8 @@ const SPEND_CAT_LABEL = Object.fromEntries(SPEND_CATS.map(c => [c.key, c.label])
 function computeSpendBreakdown() {
   const catTotals = {};
   store.accounts.forEach(a => (a.tx||[]).forEach(t => {
-    if (t.amt < 0 && !t.loan && !t.transfer) {
-      const key = SPEND_CAT_LABEL[t.cat] ? t.cat : 'other';
+    if (t.amt < 0 && !t.loan && !t.transfer && spendCounts(t)) {
+      const key = spendCatLabel(t.cat) ? t.cat : 'other';
       catTotals[key] = (catTotals[key] || 0) + Math.abs(t.amt);
     }
   }));
@@ -38,7 +78,7 @@ function computeSpendBreakdown() {
   let acc = 0;
   const stops = [];
   const legend = [];
-  SPEND_CATS.forEach(c => {
+  spendCats().forEach(c => {
     const amt = catTotals[c.key] || 0;
     if (!amt) return;
     const pct = amt / spendTotal;
@@ -49,7 +89,7 @@ function computeSpendBreakdown() {
     legend.push(`
       <div class="pie-legend-row">
         <span class="pie-dot" style="background:${c.color}"></span>
-        <span class="pie-label">${c.label}</span>
+        <span class="pie-label">${esc(c.label)}</span>
         <span class="pie-val">${money(amt)} · ${Math.round(pct*100)}%</span>
       </div>`);
   });
@@ -60,8 +100,13 @@ function showSpendingDetail() {
   const spend = computeSpendBreakdown();
   const dlg = document.querySelector('.dialog');
   if (dlg) dlg.classList.add('dialog-wide');
-  document.getElementById('dlgTitle').textContent = 'Spending by Category';
-  document.getElementById('dlgBody').innerHTML = spend.spendTotal
+  const mode = store.spendPeriod || 'all';
+  const resetD = store.spendResetTs ? isoOf(new Date(store.spendResetTs)) : '';
+  const from = [spendFrom(), resetD].sort().pop();
+  const fmt = iso => parseD(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const nxt = nextSpendReset(mode);
+  const range = (from ? 'Since ' + fmt(from) : 'All time') + (nxt ? ' · next reset ' + fmt(nxt) : '');
+  const chart = spend.spendTotal
     ? `<div class="pie-wrap">
          <div class="pie" style="background:conic-gradient(${spend.stops.join(', ')});">
            <div class="donut-hole">
@@ -73,7 +118,47 @@ function showSpendingDetail() {
          </div>
          <div class="pie-legend">${spend.legendHtml}</div>
        </div>`
-    : '<div class="empty">No spending recorded yet</div>';
+    : '<div class="empty">No spending recorded in this period</div>';
+  document.getElementById('dlgTitle').textContent = 'Spending by Category';
+  document.getElementById('dlgBody').innerHTML = chart + `<div class="spend-tools"><div class="spend-range">${range}</div><div class="spend-range">Change the reset schedule or categories in Settings.</div></div>`;
+  document.getElementById('backdrop').classList.add('open');
+}
+
+
+// Settings → Spending categories: add / delete custom categories.
+function showCategoryManager() {
+  const customs = store.customCats || [];
+  const dlg = document.querySelector('.dialog');
+  if (dlg) dlg.classList.remove('dialog-wide');
+  document.getElementById('dlgTitle').textContent = 'Spending Categories';
+  document.getElementById('dlgBody').innerHTML = `
+    <div class="spend-tools" style="margin-top:0;padding-top:0;border-top:0;">
+      <div class="field wide"><label>Built-in</label>
+        <div class="cat-chips">${BASE_SPEND_CATS.map(c => `<span class="cat-chip" style="padding-right:10px;"><span class="pie-dot" style="background:${c.color}"></span>${esc(c.label)}</span>`).join('')}</div>
+      </div>
+      <div class="field wide"><label>Your categories</label>
+        <div class="cat-chips">${customs.length ? customs.map(c => `<span class="cat-chip"><span class="pie-dot" style="background:${c.color}"></span>${esc(c.label)}<button type="button" data-delcat="${c.key}" title="Delete category" aria-label="Delete ${esc(c.label)}">✕</button></span>`).join('') : '<span class="spend-range">None yet — add one below.</span>'}</div>
+      </div>
+      <div class="cat-add">
+        <div class="field"><input id="spCatName" type="text" maxlength="24" placeholder="New category name"></div>
+        <input id="spCatColor" type="color" value="${CAT_PALETTE[customs.length % CAT_PALETTE.length]}" aria-label="Category color">
+        <button class="btn btn-gold" id="spCatAdd">Add</button>
+      </div>
+      <div class="spend-range" id="spMsg"></div>
+    </div>`;
+  const body = document.getElementById('dlgBody');
+  const add = () => {
+    const r = addSpendCategory(body.querySelector('#spCatName').value, body.querySelector('#spCatColor').value);
+    if (!r.ok) { const m = body.querySelector('#spMsg'); m.textContent = r.msg; m.style.color = 'var(--coral)'; return; }
+    refreshSettingsUI(); showCategoryManager();
+  };
+  body.querySelector('#spCatAdd').onclick = add;
+  body.querySelector('#spCatName').onkeydown = e => { if (e.key === 'Enter') add(); };
+  body.querySelectorAll('[data-delcat]').forEach(b => b.onclick = () => {
+    const c = (store.customCats || []).find(x => x.key === b.dataset.delcat);
+    if (!c || !confirm(`Delete "${c.label}"?\n\nExisting spending in it will be counted under Other.`)) return;
+    store.customCats = store.customCats.filter(x => x.key !== c.key); save(); refreshSettingsUI(); drawHome(); showCategoryManager();
+  });
   document.getElementById('backdrop').classList.add('open');
 }
 
@@ -100,6 +185,9 @@ function load() {
       d.school = d.school || '';
       d.currency = d.currency || '$';
       d.timefmt = d.timefmt || '12';
+      d.customCats = Array.isArray(d.customCats) ? d.customCats : [];
+      d.spendPeriod = ['all','week','month','year'].includes(d.spendPeriod) ? d.spendPeriod : 'all';
+      d.spendResetTs = Number(d.spendResetTs) || 0;
       d.notify = !!d.notify;
       d.classNotify = !!d.classNotify;
       d.classNotifyLead = Number(d.classNotifyLead) || 10;
@@ -111,7 +199,8 @@ function load() {
     accounts: [], loans: [], passwords: [], log: [],
     theme: 'night', style: 'soft',
     name: '', school: '', currency: '$', timefmt: '12', notify: false,
-    classNotify: false, classNotifyLead: 10
+    classNotify: false, classNotifyLead: 10,
+    customCats: [], spendPeriod: 'all', spendResetTs: 0
   };
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
@@ -252,7 +341,8 @@ function wipeAllData() {
     accounts: [], loans: [], passwords: [], log: [],
     theme: 'night', style: 'soft',
     name: '', school: '', currency: '$', timefmt: '12', notify: false,
-    classNotify: false, classNotifyLead: 10
+    classNotify: false, classNotifyLead: 10,
+    customCats: [], spendPeriod: 'all', spendResetTs: 0
   };
   save();
   applyTheme('night');
@@ -361,6 +451,8 @@ function refreshSettingsUI() {
   set('schoolValue', store.school || 'Not set');
   set('currencyValue', store.currency || '$');
   set('timefmtValue', store.timefmt === '24' ? '24-hour' : '12-hour');
+  set('spendPeriodValue', { all: 'Never', week: 'Every week', month: 'Every month', year: 'Every year' }[store.spendPeriod || 'all']);
+  set('spendCatsValue', String(spendCats().length));
   set('notifyValue', store.notify ? 'On' : 'Off');
   set('classNotifyValue', store.classNotify ? 'On' : 'Off');
   set('classNotifyLeadValue', (Number(store.classNotifyLead) || 10) + ' min before');
@@ -629,6 +721,17 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
     store.timefmt = store.timefmt === '24' ? '12' : '24';
     save(); refreshSettingsUI(); tick();
   }
+  else if (action === 'spendperiod') {
+    const modes = ['all', 'week', 'month', 'year'];
+    store.spendPeriod = modes[(modes.indexOf(store.spendPeriod || 'all') + 1) % modes.length];
+    save(); refreshSettingsUI(); drawHome();
+  }
+  else if (action === 'spendresetnow') {
+    if (!confirm('Reset the spending chart now?\n\nYour transactions are kept — the chart just starts fresh from today.')) return;
+    store.spendResetTs = Date.now(); save(); drawHome();
+    alert('Spending chart reset.');
+  }
+  else if (action === 'spendcats') showCategoryManager();
   else if (action === 'notify') toggleNotify();
   else if (action === 'classnotify') toggleClassNotify();
   else if (action === 'classnotifylead') cycleClassNotifyLead();
@@ -642,6 +745,9 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
         store = JSON.parse(backup);
         store.passwords = store.passwords || [];
         store.loans = store.loans || [];
+        store.customCats = Array.isArray(store.customCats) ? store.customCats : [];
+        store.spendPeriod = ['all','week','month','year'].includes(store.spendPeriod) ? store.spendPeriod : 'all';
+        store.spendResetTs = Number(store.spendResetTs) || 0;
         store.classNotify = !!store.classNotify;
         store.classNotifyLead = Number(store.classNotifyLead) || 10;
         save();
@@ -1589,7 +1695,7 @@ function drawWallet() {
           <div class="field wide"><label>Note (required)</label><input class="note" placeholder="e.g. Lunch, allowance from mom" required></div>
           ${!isIn ? `<div class="field wide"><label>Category</label>
             <select class="cat">
-              ${[SPEND_CATS.find(c=>c.key==='other'), ...SPEND_CATS.filter(c=>c.key!=='other')].map(c => `<option value="${c.key}">${c.label}</option>`).join('')}
+              ${[spendCats().find(c=>c.key==='other'), ...spendCats().filter(c=>c.key!=='other')].map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}
             </select>
           </div>` : ''}
         </div>
@@ -1606,7 +1712,7 @@ function drawWallet() {
         const acc = store.accounts.find(x => x.id === aid);
         if (!acc) return;
         acc.tx = acc.tx || [];
-        const tx = { id: id(), desc: note, amt: isIn ? amt : -amt, date: today() };
+        const tx = { id: id(), desc: note, amt: isIn ? amt : -amt, date: today(), ts: Date.now() };
         if (!isIn) tx.cat = form.querySelector('.cat')?.value || 'other';
         acc.tx.push(tx);
         save(); log(`${isIn?'+':'-'}${money(amt)} · ${acc.name}`, isIn?COLORS[4]:COLORS[1]);
@@ -1644,6 +1750,9 @@ function drawWallet() {
         acc.tx.push({ id: id(), desc: `Loan to ${who}: ${purpose}`, amt: -amt, date: today(), loan: true });
         // Track as receivable
         store.loans = store.loans || [];
+        store.customCats = Array.isArray(store.customCats) ? store.customCats : [];
+        store.spendPeriod = ['all','week','month','year'].includes(store.spendPeriod) ? store.spendPeriod : 'all';
+        store.spendResetTs = Number(store.spendResetTs) || 0;
         store.loans.push({
           id: id(), who, amt, purpose, date: today(),
           accountId: aid, settled: false
@@ -1664,7 +1773,7 @@ function drawWallet() {
         ? txs.map(t => `
           <div class="tx-row">
             <span class="tx-amt ${t.amt>=0?'pos':'neg'}">${t.amt>=0?'+':''}${money(t.amt)}</span>
-            <span class="tx-desc">${esc(t.desc)}${t.cat && SPEND_CAT_LABEL[t.cat] && !t.transfer && !t.loan ? ' · ' + esc(SPEND_CAT_LABEL[t.cat]) : ''}</span>
+            <span class="tx-desc">${esc(t.desc)}${t.cat && spendCatLabel(t.cat) && !t.transfer && !t.loan ? ' · ' + esc(spendCatLabel(t.cat)) : ''}</span>
             <span class="tx-date">${t.date}</span>
           </div>`).join('')
         : '<div class="empty">No transactions</div>';
@@ -1824,6 +1933,9 @@ document.getElementById('importFile').onchange = e => {
       store = JSON.parse(r.result);
       store.passwords = store.passwords || [];
       store.loans = store.loans || [];
+      store.customCats = Array.isArray(store.customCats) ? store.customCats : [];
+      store.spendPeriod = ['all','week','month','year'].includes(store.spendPeriod) ? store.spendPeriod : 'all';
+      store.spendResetTs = Number(store.spendResetTs) || 0;
       store.classNotify = !!store.classNotify;
       store.classNotifyLead = Number(store.classNotifyLead) || 10;
       save();
