@@ -38,6 +38,14 @@ as an installable Android app.
 
 ## What's new
 
+### Starry Night and Dragon themes
+Two more animated themes join Circuit. **Starry Night** paints a swirling night
+sky with pulsing stars, a crescent moon and a village under a cypress. **Dragon**
+covers the screen in dragon-hide scales with waves of fire rolling through them
+and embers drifting up. Each animation runs only while its theme is selected.
+Pick them in **Settings → Appearance → Theme**. The app icon is now a dragon,
+and alternative icons to try are in `assets/icon-options/`.
+
 ### Circuit theme
 A new **Circuit** theme brings the circuit-board look to Nexus: a dark green
 board with copper and gold accents, translucent cards with small pad corners,
@@ -82,7 +90,10 @@ www/                 the app
   nexus.css
   nexus.js
   circuit-bg.js      animated Circuit theme background
+  starry-bg.js       animated Starry Night theme background
+  dragon-bg.js       animated Dragon theme background
   assets/
+assets/              app icon (icon.png) and icon-options/ to try later
 package.json         Capacitor and Local Notifications dependencies
 capacitor.config.json
 ```
