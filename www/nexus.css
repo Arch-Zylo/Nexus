@@ -152,6 +152,7 @@ a { color: inherit; text-decoration: none; }
 .logo {
   width: 42px; height: 42px;
   border-radius: 14px;
+  overflow: hidden;
   background: linear-gradient(145deg, var(--gold), #e09a2e);
   display: grid; place-items: center;
   font-weight: 700; font-size: 1.1rem; color: #1a1204;
@@ -1289,6 +1290,67 @@ a { color: inherit; text-decoration: none; }
 [data-theme="circuit"] .sheet { background: #0e2f2a; }
 [data-theme="circuit"] .logo { box-shadow: 0 4px 16px rgba(243, 201, 105, 0.25); }
 [data-theme="circuit"] .stage { background: transparent; }
+
+/* Starry Night — swirling night sky with pulsing stars (animated background) */
+[data-theme="starry"] {
+  --void: #0b1a3d;
+  --ink: rgba(9, 21, 52, 0.86);
+  --panel: rgba(14, 32, 76, 0.84);
+  --panel-2: rgba(26, 52, 112, 0.9);
+  --line: rgba(143, 187, 224, 0.42);
+  --line-soft: rgba(143, 187, 224, 0.22);
+  --fog: #aac3e0;
+  --mist: #7f9cc4;
+  --snow: #f4f1dc;
+  --gold: #f6e27a;
+  --gold-dim: rgba(246, 226, 122, 0.15);
+  --mint: #8fd0b8;
+  --coral: #f08a6b;
+  --sky: #7fb4e6;
+  --lilac: #f2b84b;
+  --sb-deep: #0b1a3d;
+  --sb-mid: #1d3f86;
+  --sb-low: #4f86c6;
+  --sb-star: #f6e27a;
+  --sb-moon: #f2b84b;
+  --sb-hill: #1a2f66;
+  --sb-village: #0a1127;
+  --sb-veil: 0.28;
+}
+/* Dragon — dragon-hide scales, rolling fire and rising embers (animated background) */
+[data-theme="dragon"] {
+  --void: #0a0607;
+  --ink: rgba(14, 8, 9, 0.88);
+  --panel: rgba(28, 14, 14, 0.86);
+  --panel-2: rgba(48, 22, 18, 0.9);
+  --line: rgba(217, 56, 30, 0.45);
+  --line-soft: rgba(217, 56, 30, 0.22);
+  --fog: #cfae9a;
+  --mist: #9a7766;
+  --snow: #f6e6cf;
+  --gold: #ff9a3a;
+  --gold-dim: rgba(255, 154, 58, 0.15);
+  --mint: #b6c36a;
+  --coral: #e5493a;
+  --sky: #f3a53a;
+  --lilac: #d9381e;
+  --db-night: #0a0607;
+  --db-scale: #7a1a14;
+  --db-fire: #ff8a2a;
+  --db-ember: #ffd36b;
+}
+#starryBg, #dragonBg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; }
+[data-theme="starry"] #starryBg, [data-theme="dragon"] #dragonBg { display: block; }
+[data-theme="starry"] .rail, [data-theme="starry"] .top,
+[data-theme="dragon"] .rail, [data-theme="dragon"] .top { backdrop-filter: blur(8px); }
+[data-theme="starry"] .card, [data-theme="dragon"] .card { backdrop-filter: blur(6px); }
+[data-theme="starry"] .sheet { background: #0e2050; }
+[data-theme="dragon"] .sheet { background: #1c0e0e; }
+[data-theme="starry"] .stage, [data-theme="dragon"] .stage { background: transparent; }
+[data-theme="starry"] .logo { box-shadow: 0 4px 16px rgba(246, 226, 122, 0.25); }
+[data-theme="dragon"] .logo { box-shadow: 0 4px 16px rgba(255, 120, 40, 0.3); }
+.brand-mark img { width: 28px; height: 28px; border-radius: 8px; display: block; }
+.logo img { width: 100%; height: 100%; display: block; object-fit: cover; }
 
 /* Spending categories + chart reset */
 .spend-tools { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); display: grid; gap: 12px; }

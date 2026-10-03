@@ -277,6 +277,8 @@ function log(msg, color) {
 const THEMES = [
   { id: 'night', label: 'Night' },
   { id: 'circuit', label: 'Circuit' },
+  { id: 'starry', label: 'Starry Night' },
+  { id: 'dragon', label: 'Dragon' },
   { id: 'ocean', label: 'Ocean' },
   { id: 'ember', label: 'Ember' },
   { id: 'forest', label: 'Forest' },
@@ -292,6 +294,8 @@ function applyTheme(t) {
   store.theme = t;
   document.documentElement.setAttribute('data-theme', t === 'night' ? '' : t);
   if (window.CircuitBG) { if (t === 'circuit') window.CircuitBG.start(); else window.CircuitBG.stop(); }
+  if (window.StarryBG) { if (t === 'starry') window.StarryBG.start(); else window.StarryBG.stop(); }
+  if (window.DragonBG) { if (t === 'dragon') window.DragonBG.start(); else window.DragonBG.stop(); }
   const tv = document.getElementById('themeValue');
   if (tv) tv.textContent = THEMES.find(x => x.id === t)?.label || 'Night';
   save();
