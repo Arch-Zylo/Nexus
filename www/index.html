@@ -76,6 +76,36 @@
     </div>
   </aside>
 
+  <!-- Side rail — Chill Mode -->
+  <aside class="rail rail-chill">
+    <div class="logo"><img src="assets/nexus-icon.png" alt="Nexus"></div>
+    <nav class="rail-nav">
+      <button class="rail-btn" data-go="chome" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="music" title="Music">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </button>
+      <button class="rail-btn" data-go="watch" title="Watch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="rail-btn" data-go="read" title="Read">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 5.5A2.5 2.5 0 014.5 3H11v16H4.5A2.5 2.5 0 002 16.5v-11z"/><path d="M22 5.5A2.5 2.5 0 0019.5 3H13v16h6.5a2.5 2.5 0 012.5 2.5v-16z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="import" title="Import">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
+      </button>
+      <button class="rail-btn" data-go="config" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </nav>
+    <div class="rail-footer">
+      <button class="theme-toggle" id="themeBtnChill" title="Toggle theme">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </aside>
+
   <!-- Stage -->
   <div class="stage">
     <header class="top">
@@ -478,6 +508,137 @@
           </div>
           <div id="passList"></div>
         </div>
+
+        <!-- Mode panel (shown when Mode is tapped) -->
+        <div id="modePanel" class="set-panel" hidden>
+          <div style="margin-bottom:12px;">
+            <button type="button" class="sort-link" id="modeBack">‹ Back</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:16px;">Switch how Nexus looks and what it does. You can switch back anytime — nothing is deleted.</p>
+          <div class="mode-pick">
+            <button type="button" class="mode-card" data-mode-pick="regular">
+              <div class="mode-card-title">Regular</div>
+              <div class="mode-card-desc">Classes, tasks, wallet, notes, people — the full student planner.</div>
+            </button>
+            <button type="button" class="mode-card" data-mode-pick="chill">
+              <div class="mode-card-title">Chill</div>
+              <div class="mode-card-desc">Music, videos, manga and stories you've imported — for downtime.</div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHILL HOME -->
+      <section class="view" id="view-chome">
+        <div class="hero">
+          <h1>Chill</h1>
+          <p class="hero-sub">Your downtime stuff — music, shows, and reading.</p>
+        </div>
+        <div class="chill-quick-grid">
+          <button type="button" class="chill-quick-tile" data-go-chill="music">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <span>Music</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="watch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
+            <span>Watch</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="read">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 5.5A2.5 2.5 0 014.5 3H11v16H4.5A2.5 2.5 0 002 16.5v-11z"/><path d="M22 5.5A2.5 2.5 0 0019.5 3H13v16h6.5a2.5 2.5 0 012.5 2.5v-16z"/></svg>
+            <span>Read</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="import">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
+            <span>Import</span>
+          </button>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Recently Added</h2></div>
+          <div class="panel-body" id="chillRecent"></div>
+        </div>
+      </section>
+
+      <!-- MUSIC -->
+      <section class="view" id="view-music">
+        <div class="hero"><h1>Music</h1></div>
+        <div id="musicList" class="chill-list"></div>
+        <div class="mini-player" id="miniPlayer" hidden>
+          <div class="mini-player-info">
+            <div class="mini-player-title" id="mpTitle">—</div>
+            <div class="mini-player-sub" id="mpSub">Not playing</div>
+          </div>
+          <div class="mini-player-controls">
+            <button type="button" id="mpPrev" title="Previous">⏮</button>
+            <button type="button" id="mpPlay" title="Play/Pause">▶</button>
+            <button type="button" id="mpNext" title="Next">⏭</button>
+          </div>
+        </div>
+        <audio id="chillAudio"></audio>
+      </section>
+
+      <!-- WATCH -->
+      <section class="view" id="view-watch">
+        <div class="hero"><h1>Watch</h1></div>
+        <div id="watchGrid" class="chill-grid"></div>
+      </section>
+
+      <!-- READ -->
+      <section class="view" id="view-read">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Read</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-read-tab="manga">Manga</button>
+              <button type="button" class="tt-mode" data-read-tab="stories">Stories</button>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btnAddStory" hidden>+ Story</button>
+        </div>
+        <div id="mangaMode">
+          <div id="mangaGrid" class="chill-grid"></div>
+        </div>
+        <div id="storiesMode" hidden>
+          <div id="storyList" class="chill-list"></div>
+        </div>
+        <div class="sheet" id="sheetStory">
+          <input type="hidden" id="st-edit-id" value="">
+          <div class="fields">
+            <div class="field wide"><label>Title</label><input id="st-title" placeholder="Title"></div>
+            <div class="field wide"><label>Story</label><textarea id="st-body" placeholder="Write something…" style="min-height:180px;"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveStory">Save</button>
+            <button class="btn btn-ghost" id="cancelStory">Cancel</button>
+            <button class="btn btn-ghost" id="deleteStory" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPORT -->
+      <section class="view" id="view-import">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Import</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-import-tab="music">Music</button>
+              <button type="button" class="tt-mode" data-import-tab="video">Video</button>
+              <button type="button" class="tt-mode" data-import-tab="manga">Manga</button>
+            </div>
+          </div>
+        </div>
+        <div id="importMusicMode">
+          <label class="btn btn-gold import-picker">+ Add Music<input type="file" id="importMusicFile" accept="audio/*" multiple hidden></label>
+          <div id="importMusicList" class="chill-list"></div>
+        </div>
+        <div id="importVideoMode" hidden>
+          <label class="btn btn-gold import-picker">+ Add Video<input type="file" id="importVideoFile" accept="video/*" multiple hidden></label>
+          <div id="importVideoList" class="chill-list"></div>
+        </div>
+        <div id="importMangaMode" hidden>
+          <label class="btn btn-gold import-picker">+ New Series (select panel images)<input type="file" id="importMangaFile" accept="image/*" multiple hidden></label>
+          <div id="importMangaList" class="chill-list"></div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device only — they are not included in Settings → Backup export.</p>
       </section>
 
     </div>

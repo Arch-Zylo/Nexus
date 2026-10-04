@@ -191,6 +191,9 @@ function load() {
       d.notify = !!d.notify;
       d.classNotify = !!d.classNotify;
       d.classNotifyLead = Number(d.classNotifyLead) || 10;
+      d.mode = d.mode === 'chill' ? 'chill' : 'regular';
+      d.chillMedia = Array.isArray(d.chillMedia) ? d.chillMedia : [];
+      d.chillStories = Array.isArray(d.chillStories) ? d.chillStories : [];
       return d;
     }
   } catch {}
@@ -200,7 +203,8 @@ function load() {
     theme: 'night', style: 'soft',
     name: '', school: '', currency: '$', timefmt: '12', notify: false,
     classNotify: false, classNotifyLead: 10,
-    customCats: [], spendPeriod: 'all', spendResetTs: 0
+    customCats: [], spendPeriod: 'all', spendResetTs: 0,
+    mode: 'regular', chillMedia: [], chillStories: []
   };
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
@@ -328,6 +332,95 @@ function nextStyle() {
   applyStyle(STYLES[(i + 1) % STYLES.length].id);
 }
 applyStyle(store.style || 'soft');
+
+/* ---------- Chill Mode: file storage (IndexedDB) ----------
+   Imported music/video/manga files are real binary data, far too big for
+   localStorage (which backs `store`), so the actual bytes live in an
+   IndexedDB object store keyed by id. Only lightweight metadata (title,
+   type, size, dateAdded) lives in store.chillMedia / store.chillStories,
+   which is why imports aren't included in the JSON backup export. */
+const CHILL_DB_NAME = 'nexus-chill';
+let chillDBPromise = null;
+function chillDB() {
+  if (chillDBPromise) return chillDBPromise;
+  chillDBPromise = new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open(CHILL_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('files'); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return chillDBPromise;
+}
+async function chillPut(key, blob) {
+  const db = await chillDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(blob, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function chillGetBlob(key) {
+  const db = await chillDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readonly');
+    const req = tx.objectStore('files').get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function chillDeleteBlob(key) {
+  const db = await chillDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function fileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+/* ---------- Mode switch: Regular ↔ Chill ---------- */
+function applyMode(mode) {
+  mode = mode === 'chill' ? 'chill' : 'regular';
+  store.mode = mode;
+  save();
+  document.documentElement.setAttribute('data-mode', mode === 'chill' ? 'chill' : '');
+}
+function setAppMode(mode) {
+  applyMode(mode);
+  const targetGo = mode === 'chill' ? 'chome' : 'home';
+  const btn = document.querySelector(`.rail-btn[data-go="${targetGo}"]`);
+  if (btn) btn.click();
+}
+applyMode(store.mode || 'regular');
+
+function showModePanel() {
+  const main = document.getElementById('settingsMain');
+  const panel = document.getElementById('modePanel');
+  if (main) main.style.display = 'none';
+  if (panel) { panel.removeAttribute('hidden'); panel.style.display = 'block'; }
+}
+function hideModePanel() {
+  const main = document.getElementById('settingsMain');
+  const panel = document.getElementById('modePanel');
+  if (panel) { panel.setAttribute('hidden',''); panel.style.display = 'none'; }
+  if (main) main.style.display = '';
+}
+document.getElementById('modeBack')?.addEventListener('click', hideModePanel);
+document.querySelectorAll('[data-mode-pick]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setAppMode(btn.dataset.modePick);
+    hideModePanel();
+  });
+});
+document.getElementById('themeBtnChill')?.addEventListener('click', nextTheme);
 
 /* Wipe data — 3 different confirmations */
 function wipeAllData() {
@@ -740,6 +833,7 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
   else if (action === 'classnotify') toggleClassNotify();
   else if (action === 'classnotifylead') cycleClassNotifyLead();
   else if (action === 'passwords') showPassPanel();
+  else if (action === 'mode') showModePanel();
   else if (action === 'export') doExport();
   else if (action === 'import') {
     const backup = localStorage.getItem(BACKUP_KEY);
@@ -826,8 +920,18 @@ document.querySelectorAll('.rail-btn').forEach(btn => {
     document.getElementById('view-'+v).classList.add('on');
     if (v === 'timetable') setTtMode(ttMode);
     if (v === 'wallet') drawWallet();
-    if (v === 'config') { refreshSettingsUI(); hidePassPanel(); }
+    if (v === 'config') { refreshSettingsUI(); hidePassPanel(); hideModePanel(); }
+    if (v === 'chome') drawChillHome();
+    if (v === 'music') drawMusic();
+    if (v === 'watch') drawWatch();
+    if (v === 'read') setReadMode(readMode);
+    if (v === 'import') setImportMode(importMode);
   };
+});
+document.querySelectorAll('[data-go-chill]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
+  });
 });
 
 /* Color chips + free color picker */
@@ -1909,10 +2013,318 @@ document.getElementById('saveTransfer').onclick = () => {
   drawWallet(); drawHome();
 };
 
+/* ============================================================
+   CHILL MODE — Import, Music, Watch, Read
+   ============================================================ */
+let chillObjectUrls = [];
+function trackChillUrl(url) { chillObjectUrls.push(url); return url; }
+function revokeChillUrls() {
+  chillObjectUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
+  chillObjectUrls = [];
+  const v = document.querySelector('#dlgBody video');
+  if (v) { try { v.pause(); } catch {} v.removeAttribute('src'); v.load(); }
+}
+function fileTitle(file) {
+  return (file.name || 'Untitled').replace(/\.[^.]+$/, '');
+}
+
+/* ---- Import ---- */
+let importMode = 'music';
+function setImportMode(mode) {
+  importMode = ['music','video','manga'].includes(mode) ? mode : 'music';
+  document.querySelectorAll('#view-import [data-import-tab]').forEach(b => b.classList.toggle('on', b.dataset.importTab === importMode));
+  document.getElementById('importMusicMode').hidden = importMode !== 'music';
+  document.getElementById('importVideoMode').hidden = importMode !== 'video';
+  document.getElementById('importMangaMode').hidden = importMode !== 'manga';
+  drawImportList(importMode);
+}
+document.querySelectorAll('#view-import [data-import-tab]').forEach(b => {
+  b.addEventListener('click', () => setImportMode(b.dataset.importTab));
+});
+
+function drawImportList(type) {
+  const el = document.getElementById('import' + type.charAt(0).toUpperCase() + type.slice(1) + 'List');
+  if (!el) return;
+  const items = store.chillMedia.filter(m => m.type === type).sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
+  el.innerHTML = items.length ? items.map(m => `
+    <div class="chill-row" data-mid="${m.id}">
+      <div class="chill-row-main">
+        <div class="chill-row-title">${esc(m.title)}</div>
+        <div class="chill-row-sub">${m.type === 'manga' ? (m.pages?.length||0) + ' page' + ((m.pages?.length||0)===1?'':'s') : fileSize(m.size)}</div>
+      </div>
+      <button type="button" class="btn-icon" data-del-media="${m.id}" title="Delete">✕</button>
+    </div>`).join('') : '<div class="empty">Nothing imported yet</div>';
+  el.querySelectorAll('[data-del-media]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const m = store.chillMedia.find(x => x.id === btn.dataset.delMedia);
+      if (!m) return;
+      if (!confirm(`Delete "${m.title}"?`)) return;
+      if (m.type === 'manga') {
+        for (const p of (m.pages || [])) { try { await chillDeleteBlob(p.id); } catch {} }
+      } else {
+        try { await chillDeleteBlob(m.id); } catch {}
+      }
+      store.chillMedia = store.chillMedia.filter(x => x.id !== m.id);
+      save();
+      drawImportList(type); drawMusic(); drawWatch();
+    });
+  });
+}
+
+async function importFiles(fileList, type) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  for (const file of files) {
+    const mid = id();
+    try { await chillPut(mid, file); } catch { continue; }
+    store.chillMedia.push({ id: mid, type, title: fileTitle(file), size: file.size, mimeType: file.type, dateAdded: Date.now() });
+  }
+  save();
+  drawImportList(type); drawMusic(); drawWatch();
+  log(`Imported ${files.length} ${type} file${files.length===1?'':'s'}`, COLORS[2]);
+}
+document.getElementById('importMusicFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'music'); e.target.value = ''; });
+document.getElementById('importVideoFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'video'); e.target.value = ''; });
+document.getElementById('importMangaFile')?.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (!files.length) return;
+  const title = prompt('Series title:', '');
+  if (title === null) return;
+  const pages = [];
+  for (let i = 0; i < files.length; i++) {
+    const pid = id();
+    try { await chillPut(pid, files[i]); } catch { continue; }
+    pages.push({ id: pid, order: i });
+  }
+  if (!pages.length) return;
+  store.chillMedia.push({ id: id(), type: 'manga', title: title.trim() || 'Untitled Series', pages, size: pages.length, dateAdded: Date.now() });
+  save();
+  drawImportList('manga');
+  log(`Imported manga series · ${title.trim() || 'Untitled Series'}`, COLORS[2]);
+});
+
+/* ---- Music ---- */
+let chillQueue = [];
+let chillQueueIndex = -1;
+const chillAudio = document.getElementById('chillAudio');
+function drawMusic() {
+  const el = document.getElementById('musicList');
+  if (!el) return;
+  chillQueue = store.chillMedia.filter(m => m.type === 'music').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
+  el.innerHTML = chillQueue.length ? chillQueue.map((m, i) => `
+    <div class="chill-row${i===chillQueueIndex?' playing':''}" data-play="${i}">
+      <div class="chill-row-main">
+        <div class="chill-row-title">${esc(m.title)}</div>
+        <div class="chill-row-sub">${fileSize(m.size)}</div>
+      </div>
+      <span class="chill-row-icon">${i===chillQueueIndex && !chillAudio.paused ? '♪' : '▶'}</span>
+    </div>`).join('') : '<div class="empty">No music imported yet — go to Import</div>';
+  el.querySelectorAll('[data-play]').forEach(row => {
+    row.addEventListener('click', () => playChillTrack(Number(row.dataset.play)));
+  });
+}
+async function playChillTrack(i) {
+  if (i < 0 || i >= chillQueue.length) return;
+  chillQueueIndex = i;
+  const m = chillQueue[i];
+  try {
+    const blob = await chillGetBlob(m.id);
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    chillAudio.src = url;
+    chillAudio.play();
+    document.getElementById('mpTitle').textContent = m.title;
+    document.getElementById('mpSub').textContent = 'Playing';
+    document.getElementById('mpPlay').textContent = '⏸';
+    document.getElementById('miniPlayer').hidden = false;
+    drawMusic();
+  } catch {}
+}
+document.getElementById('mpPlay')?.addEventListener('click', () => {
+  if (!chillAudio.src) return;
+  if (chillAudio.paused) { chillAudio.play(); document.getElementById('mpPlay').textContent = '⏸'; document.getElementById('mpSub').textContent = 'Playing'; }
+  else { chillAudio.pause(); document.getElementById('mpPlay').textContent = '▶'; document.getElementById('mpSub').textContent = 'Paused'; }
+  drawMusic();
+});
+document.getElementById('mpPrev')?.addEventListener('click', () => playChillTrack(chillQueueIndex - 1 < 0 ? chillQueue.length - 1 : chillQueueIndex - 1));
+document.getElementById('mpNext')?.addEventListener('click', () => playChillTrack((chillQueueIndex + 1) % chillQueue.length));
+chillAudio?.addEventListener('ended', () => playChillTrack((chillQueueIndex + 1) % chillQueue.length));
+
+/* ---- Watch ---- */
+function drawWatch() {
+  const el = document.getElementById('watchGrid');
+  if (!el) return;
+  const items = store.chillMedia.filter(m => m.type === 'video').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
+  el.innerHTML = items.length ? items.map(m => `
+    <div class="chill-tile" data-watch="${m.id}">
+      <div class="chill-tile-icon">▶</div>
+      <div class="chill-tile-title">${esc(m.title)}</div>
+      <div class="chill-tile-sub">${fileSize(m.size)}</div>
+    </div>`).join('') : '<div class="empty">No videos imported yet — go to Import</div>';
+  el.querySelectorAll('[data-watch]').forEach(tile => {
+    tile.addEventListener('click', () => openVideo(tile.dataset.watch));
+  });
+}
+async function openVideo(mid) {
+  const m = store.chillMedia.find(x => x.id === mid);
+  if (!m) return;
+  const blob = await chillGetBlob(mid);
+  if (!blob) return;
+  const url = trackChillUrl(URL.createObjectURL(blob));
+  document.getElementById('dlgTitle').textContent = m.title;
+  document.getElementById('dlgBody').innerHTML = `<video class="chill-video" src="${url}" controls autoplay></video>`;
+  document.querySelector('.dialog')?.classList.add('dialog-wide');
+  document.getElementById('backdrop').classList.add('open');
+}
+
+/* ---- Read: Manga + Stories ---- */
+let readMode = 'manga';
+function setReadMode(mode) {
+  readMode = mode === 'stories' ? 'stories' : 'manga';
+  document.querySelectorAll('#view-read [data-read-tab]').forEach(b => b.classList.toggle('on', b.dataset.readTab === readMode));
+  document.getElementById('mangaMode').hidden = readMode !== 'manga';
+  document.getElementById('storiesMode').hidden = readMode !== 'stories';
+  document.getElementById('btnAddStory').hidden = readMode !== 'stories';
+  if (readMode === 'manga') drawManga(); else drawStories();
+}
+document.querySelectorAll('#view-read [data-read-tab]').forEach(b => {
+  b.addEventListener('click', () => setReadMode(b.dataset.readTab));
+});
+
+function drawManga() {
+  const el = document.getElementById('mangaGrid');
+  if (!el) return;
+  const items = store.chillMedia.filter(m => m.type === 'manga').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
+  el.innerHTML = items.length ? items.map(m => `
+    <div class="chill-tile" data-manga="${m.id}">
+      <div class="chill-tile-icon">📖</div>
+      <div class="chill-tile-title">${esc(m.title)}</div>
+      <div class="chill-tile-sub">${(m.pages?.length||0)} page${(m.pages?.length||0)===1?'':'s'}</div>
+    </div>`).join('') : '<div class="empty">No manga imported yet — go to Import</div>';
+  el.querySelectorAll('[data-manga]').forEach(tile => {
+    tile.addEventListener('click', () => openManga(tile.dataset.manga));
+  });
+}
+async function openManga(mid) {
+  const m = store.chillMedia.find(x => x.id === mid);
+  if (!m) return;
+  const pages = [...(m.pages || [])].sort((a,b) => a.order - b.order);
+  const imgs = [];
+  for (const p of pages) {
+    const blob = await chillGetBlob(p.id);
+    if (!blob) continue;
+    imgs.push(trackChillUrl(URL.createObjectURL(blob)));
+  }
+  document.getElementById('dlgTitle').textContent = m.title;
+  document.getElementById('dlgBody').innerHTML = imgs.length
+    ? `<div class="manga-reader">${imgs.map(u => `<img src="${u}" loading="lazy">`).join('')}</div>`
+    : '<div class="empty">No pages</div>';
+  document.querySelector('.dialog')?.classList.add('dialog-wide');
+  document.getElementById('backdrop').classList.add('open');
+}
+
+function drawStories() {
+  const el = document.getElementById('storyList');
+  if (!el) return;
+  const items = [...store.chillStories].sort((a,b) => (b.ts||0)-(a.ts||0));
+  el.innerHTML = items.length ? items.map(s => {
+    const preview = (s.body || '').replace(/\s+/g,' ').trim().slice(0, 90);
+    return `<div class="chill-row" data-story="${s.id}">
+      <div class="chill-row-main">
+        <div class="chill-row-title">${esc(s.title)}</div>
+        <div class="chill-row-sub">${esc(preview)}${(s.body||'').length>90?'…':''}</div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">No stories yet — tap + Story to write one</div>';
+  el.querySelectorAll('[data-story]').forEach(row => {
+    row.addEventListener('click', () => showStoryDetail(row.dataset.story));
+  });
+}
+function showStoryDetail(sid) {
+  const s = store.chillStories.find(x => x.id === sid);
+  if (!s) return;
+  document.getElementById('dlgTitle').textContent = 'Story';
+  document.getElementById('dlgBody').innerHTML = `
+    <div class="note-full-title">${esc(s.title)}</div>
+    <div class="note-full-body">${esc(s.body)}</div>
+    <div class="note-full-meta">${s.ts ? ago(s.ts) : ''}</div>
+    <div class="cd-actions" style="margin-top:16px;">
+      <button class="btn btn-gold" id="editStoryBtn">Edit</button>
+      <button class="btn btn-ghost" id="delStoryBtn" style="color:var(--coral);border-color:rgba(240,113,120,0.35);">Delete</button>
+    </div>`;
+  document.getElementById('backdrop').classList.add('open');
+  document.getElementById('editStoryBtn').onclick = () => { closeDialog(); openStoryForm(s); };
+  document.getElementById('delStoryBtn').onclick = () => {
+    if (!confirm('Delete this story?')) return;
+    store.chillStories = store.chillStories.filter(x => x.id !== sid);
+    save(); closeDialog(); drawStories();
+  };
+}
+function openStoryForm(s) {
+  document.getElementById('st-edit-id').value = s ? s.id : '';
+  document.getElementById('st-title').value = s ? (s.title||'') : '';
+  document.getElementById('st-body').value = s ? (s.body||'') : '';
+  document.getElementById('deleteStory').hidden = !s;
+  document.getElementById('sheetStory').classList.add('open');
+  document.getElementById('st-title').focus();
+}
+function resetStoryForm() {
+  document.getElementById('st-edit-id').value = '';
+  document.getElementById('st-title').value = '';
+  document.getElementById('st-body').value = '';
+  document.getElementById('deleteStory').hidden = true;
+  document.getElementById('sheetStory').classList.remove('open');
+}
+document.getElementById('btnAddStory')?.addEventListener('click', () => {
+  const sheet = document.getElementById('sheetStory');
+  if (sheet.classList.contains('open')) resetStoryForm(); else openStoryForm(null);
+});
+document.getElementById('cancelStory')?.addEventListener('click', resetStoryForm);
+document.getElementById('saveStory')?.addEventListener('click', () => {
+  const title = document.getElementById('st-title').value.trim();
+  const body = document.getElementById('st-body').value.trim();
+  if (!title || !body) { (title?document.getElementById('st-body'):document.getElementById('st-title')).focus(); return; }
+  const editId = document.getElementById('st-edit-id').value;
+  if (editId) {
+    const idx = store.chillStories.findIndex(x => x.id === editId);
+    if (idx >= 0) store.chillStories[idx] = { ...store.chillStories[idx], title, body };
+  } else {
+    store.chillStories.push({ id: id(), title, body, ts: Date.now() });
+  }
+  save(); resetStoryForm(); drawStories();
+});
+document.getElementById('deleteStory')?.addEventListener('click', () => {
+  const editId = document.getElementById('st-edit-id').value;
+  if (!editId) return;
+  if (!confirm('Delete this story?')) return;
+  store.chillStories = store.chillStories.filter(x => x.id !== editId);
+  save(); resetStoryForm(); drawStories();
+});
+
+/* ---- Chill Home ---- */
+function drawChillHome() {
+  const el = document.getElementById('chillRecent');
+  if (!el) return;
+  const items = [
+    ...store.chillMedia.map(m => ({ id: m.id, title: m.title, type: m.type, ts: m.dateAdded || 0 })),
+    ...store.chillStories.map(s => ({ id: s.id, title: s.title, type: 'story', ts: s.ts || 0 })),
+  ].sort((a,b) => b.ts - a.ts).slice(0, 8);
+  const ICON = { music: '♪', video: '▶', manga: '📖', story: '✎' };
+  el.innerHTML = items.length ? items.map(it => `
+    <div class="row">
+      <span class="dot" style="background:${COLORS[3]}"></span>
+      <div class="row-main"><div class="row-title">${ICON[it.type]||''} ${esc(it.title)}</div></div>
+      <span class="row-meta">${it.ts ? ago(it.ts) : ''}</span>
+    </div>`).join('') : '<div class="empty">Nothing imported yet</div>';
+}
+
 function closeDialog() {
   document.getElementById('backdrop').classList.remove('open');
   const dlg = document.querySelector('.dialog');
   if (dlg) dlg.classList.remove('dialog-wide');
+  revokeChillUrls();
 }
 document.getElementById('dlgClose').onclick = closeDialog;
 document.getElementById('backdrop').onclick = e => { if (e.target.id === 'backdrop') closeDialog(); };
@@ -2163,5 +2575,8 @@ function boot() {
   scheduleDueTaskReminders();
   scheduleAllClassNotifications();
   maybeShowTos();
+  if (store.mode === 'chill') {
+    document.querySelector('.rail-chill [data-go="chome"]')?.click();
+  }
 }
 boot();
