@@ -1552,93 +1552,83 @@ function drawNotes() {
   grid.innerHTML = items.length ? items.map(n => {
     const preview = (n.body || '').replace(/\s+/g, ' ').trim().slice(0, 90);
     return `<div class="note" data-nid="${n.id}">
-      <h3>${esc(n.title)}</h3>
+      ${n.title ? `<h3>${esc(n.title)}</h3>` : ''}
       <div class="preview">${esc(preview)}${(n.body||'').length > 90 ? '…' : ''}</div>
       <div class="when">${n.ts ? ago(n.ts) : ''}</div>
     </div>`;
   }).join('') : '<div class="empty">No notes yet</div>';
 
   grid.querySelectorAll('[data-nid]').forEach(card => {
-    card.onclick = () => showNoteDetail(card.dataset.nid);
+    card.onclick = () => openNoteForm(store.notes.find(x => x.id === card.dataset.nid));
   });
 }
 
-function showNoteDetail(nid) {
-  const n = store.notes.find(x => x.id === nid);
-  if (!n) return;
-  document.getElementById('dlgTitle').textContent = 'Note';
-  document.getElementById('dlgBody').innerHTML = `
-    <div class="note-full-title">${esc(n.title)}</div>
-    <div class="note-full-body">${esc(n.body)}</div>
-    <div class="note-full-meta">${n.ts ? ago(n.ts) : ''}</div>
-    <div class="cd-actions" style="margin-top:16px;">
-      <button class="btn btn-gold" id="editNoteBtn">Edit</button>
-      <button class="btn btn-ghost" id="delNoteBtn" style="color:var(--coral);border-color:rgba(240,113,120,0.35);">Delete</button>
-    </div>`;
-  document.getElementById('backdrop').classList.add('open');
-  document.getElementById('editNoteBtn').onclick = () => {
-    document.getElementById('backdrop').classList.remove('open');
-    openNoteForm(n);
-  };
-  document.getElementById('delNoteBtn').onclick = () => {
-    if (!confirm('Delete this note?')) return;
-    store.notes = store.notes.filter(x => x.id !== nid);
-    save();
-    document.getElementById('backdrop').classList.remove('open');
-    drawNotes();
-  };
-}
+const $n = (i) => document.getElementById(i);
+let noteTimer = null;
 
 function openNoteForm(n) {
-  document.getElementById('n-edit-id').value = n ? n.id : '';
-  document.getElementById('n-title').value = n ? (n.title || '') : '';
-  document.getElementById('n-body').value = n ? (n.body || '') : '';
-  document.getElementById('deleteNote').hidden = !n;
-  document.getElementById('sheetNote').classList.add('open');
-  document.getElementById('n-title').focus();
+  $n('n-edit-id').value = n ? n.id : '';
+  $n('n-title').value = n ? (n.title || '') : '';
+  $n('n-body').value = n ? (n.body || '') : '';
+  $n('deleteNote').hidden = !n;
+  $n('noteStatus').textContent = '';
+  $n('noteList').hidden = true;
+  $n('noteEditor').hidden = false;
+  window.scrollTo(0, 0);
+  if (!n) $n('n-title').focus();
 }
 
-function resetNoteForm() {
-  document.getElementById('n-edit-id').value = '';
-  document.getElementById('n-title').value = '';
-  document.getElementById('n-body').value = '';
-  document.getElementById('deleteNote').hidden = true;
-  document.getElementById('sheetNote').classList.remove('open');
-}
-
-document.getElementById('btnAddNote').onclick = () => {
-  const sheet = document.getElementById('sheetNote');
-  if (sheet.classList.contains('open')) resetNoteForm();
-  else openNoteForm(null);
-};
-document.getElementById('cancelNote').onclick = () => resetNoteForm();
-document.getElementById('saveNote').onclick = () => {
-  const title = document.getElementById('n-title').value.trim();
-  const body = document.getElementById('n-body').value.trim();
-  if (!title || !body) {
-    (title ? document.getElementById('n-body') : document.getElementById('n-title')).focus();
+// Auto-save like Google Keep: create/update as you type, discard empty notes.
+function commitNote() {
+  clearTimeout(noteTimer);
+  const title = $n('n-title').value.trim();
+  const body = $n('n-body').value.trim();
+  const editId = $n('n-edit-id').value;
+  if (!title && !body) {
+    if (editId) {
+      store.notes = store.notes.filter(x => x.id !== editId);
+      $n('n-edit-id').value = '';
+      $n('deleteNote').hidden = true;
+      save();
+    }
     return;
   }
-  const editId = document.getElementById('n-edit-id').value;
-  if (editId) {
-    const idx = store.notes.findIndex(x => x.id === editId);
-    if (idx >= 0) store.notes[idx] = { ...store.notes[idx], title, body };
-    save(); log(`Note updated · ${title}`, COLORS[5]);
+  const cur = editId && store.notes.find(x => x.id === editId);
+  if (cur) {
+    if (cur.title === title && cur.body === body) return;
+    cur.title = title; cur.body = body; cur.ts = Date.now();
   } else {
-    store.notes.push({ id: id(), title, body, ts: Date.now() });
-    save(); log(`Note · ${title}`, COLORS[5]);
+    const nid = id();
+    store.notes.push({ id: nid, title, body, ts: Date.now() });
+    $n('n-edit-id').value = nid;
+    $n('deleteNote').hidden = false;
+    log(`Note · ${title || body.slice(0, 30)}`, COLORS[5]);
   }
-  resetNoteForm();
+  save();
+  $n('noteStatus').textContent = 'Saved';
+}
+
+function closeNoteEditor() {
+  commitNote();
+  $n('noteEditor').hidden = true;
+  $n('noteList').hidden = false;
   drawNotes();
-};
-document.getElementById('deleteNote').onclick = () => {
-  const editId = document.getElementById('n-edit-id').value;
-  if (!editId) return;
-  if (!confirm('Delete this note?')) return;
+}
+
+['n-title', 'n-body'].forEach(i => $n(i).addEventListener('input', () => {
+  $n('noteStatus').textContent = 'Saving…';
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(commitNote, 600);
+}));
+$n('btnAddNote').onclick = () => openNoteForm(null);
+$n('noteBack').onclick = closeNoteEditor;
+$n('deleteNote').onclick = () => {
+  const editId = $n('n-edit-id').value;
+  if (!editId || !confirm('Delete this note?')) return;
   store.notes = store.notes.filter(x => x.id !== editId);
   save();
-  resetNoteForm();
-  drawNotes();
+  $n('n-edit-id').value = '';
+  closeNoteEditor();
 };
 
 /* ---------- WALLET ---------- */

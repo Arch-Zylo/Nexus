@@ -31,9 +31,7 @@
       <p>You are responsible for the information you enter (schedules, amounts, due dates). Nexus does not replace official school records or financial advice.</p>
       <h2>6. Backups</h2>
       <p>Export regularly from Settings → Backup. We cannot recover data you did not export.</p>
-      <h2>7. Age</h2>
-      <p>If you are under 18, use Nexus with a parent or guardian’s permission where required.</p>
-      <h2>8. Changes</h2>
+      <h2>7. Changes</h2>
       <p>These terms may be updated in future versions. Continued use after an update means you accept the new terms.</p>
     </div>
     <label class="tos-check">
@@ -260,25 +258,21 @@
 
       <!-- NOTES -->
       <section class="view" id="view-notes">
-        <div class="hero">
-          <h1>Notes</h1>
+        <div id="noteList">
+          <div class="hero"><h1>Notes</h1></div>
+          <div class="actions"><button class="btn btn-gold" id="btnAddNote">+ Note</button></div>
+          <div class="mosaic" id="noteGrid"></div>
         </div>
-        <div class="actions">
-          <button class="btn btn-gold" id="btnAddNote">+ Note</button>
-        </div>
-        <div class="sheet" id="sheetNote">
+        <div class="note-editor" id="noteEditor" hidden>
           <input type="hidden" id="n-edit-id" value="">
-          <div class="fields">
-            <div class="field wide"><label>Title</label><input id="n-title" placeholder="Title"></div>
-            <div class="field wide"><label>Body</label><textarea id="n-body" placeholder="Write something…"></textarea></div>
+          <div class="ne-bar">
+            <button class="btn btn-ghost" id="noteBack" type="button">‹ Back</button>
+            <span class="ne-status" id="noteStatus"></span>
+            <button class="btn btn-ghost" id="deleteNote" type="button" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
           </div>
-          <div class="form-foot">
-            <button class="btn btn-gold" id="saveNote">Save</button>
-            <button class="btn btn-ghost" id="cancelNote">Cancel</button>
-            <button class="btn btn-ghost" id="deleteNote" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
-          </div>
+          <input class="ne-title" id="n-title" placeholder="Title" autocomplete="off">
+          <textarea class="ne-body" id="n-body" placeholder="Note"></textarea>
         </div>
-        <div class="mosaic" id="noteGrid"></div>
       </section>
 
       <!-- WALLET -->
@@ -411,6 +405,10 @@
 
         <p class="set-group-label">Tools</p>
         <div class="set-list">
+          <button type="button" class="set-row" data-set="mode">
+            <span class="set-label">Mode</span>
+            <span class="set-chevron">›</span>
+          </button>
           <div class="set-row set-row-split">
             <span class="set-label">Backup</span>
             <span class="set-actions">

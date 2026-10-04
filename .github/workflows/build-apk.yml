@@ -48,7 +48,7 @@ jobs:
 
           # Use the transparent Axis A logo itself for the native launch screen.
           # This avoids the gray/black square produced by using Capacitor's generated splash drawable.
-          cp assets/icon.png "$DRAWABLE_NODPI/nexus_splash_logo.png"
+          cp assets/launch-screen.png "$DRAWABLE_NODPI/nexus_splash_logo.png"
 
           cat > "$VALUES/splash_colors.xml" <<'XML'
           <?xml version="1.0" encoding="utf-8"?>
