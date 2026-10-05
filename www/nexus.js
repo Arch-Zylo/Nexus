@@ -194,6 +194,7 @@ function load() {
       d.mode = d.mode === 'chill' ? 'chill' : 'regular';
       d.chillMedia = Array.isArray(d.chillMedia) ? d.chillMedia : [];
       d.chillStories = Array.isArray(d.chillStories) ? d.chillStories : [];
+      d.chillProgress = d.chillProgress && typeof d.chillProgress === 'object' ? d.chillProgress : {};
       return d;
     }
   } catch {}
@@ -204,7 +205,7 @@ function load() {
     name: '', school: '', currency: '$', timefmt: '12', notify: false,
     classNotify: false, classNotifyLead: 10,
     customCats: [], spendPeriod: 'all', spendResetTs: 0,
-    mode: 'regular', chillMedia: [], chillStories: []
+    mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
   };
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
@@ -2067,6 +2068,8 @@ function drawImportList(type) {
         try { await chillDeleteBlob(m.id); } catch {}
       }
       store.chillMedia = store.chillMedia.filter(x => x.id !== m.id);
+      try { await chillDeleteBlob('thumb:' + m.id); } catch {}
+      thumbUrls.delete(m.id); delete (store.chillProgress || {})[m.id];
       save();
       drawImportList(type); drawMusic(); drawWatch();
     });
@@ -2100,12 +2103,14 @@ function parseMangaPath(s) {
   const p = (s || '').split('/').map(x => x.trim()).filter(Boolean);
   return { title: p[0] || '', chapter: p[1] || 'Chapter 1' };
 }
+let mgTick = () => {};
 async function addMangaChapter(title, chapter, files) {
   files = files.filter(f => (f.type || 'image/').startsWith('image/')).sort(natSort);
   const pages = [];
   for (let i = 0; i < files.length; i++) {
     const pid = id();
     try { await chillPut(pid, files[i]); } catch { continue; }
+    mgTick();
     pages.push({ id: pid, order: i });
   }
   if (!pages.length) return 0;
@@ -2125,33 +2130,275 @@ function mangaImported(n, title, chapter) {
   save(); drawImportList('manga'); drawManga(); refreshMangaTitles();
   log(`Imported ${n} panel${n===1?'':'s'} · ${title} / ${chapter}`, COLORS[2]);
 }
+/* ---- ZIP reader (.cbz/.zip), from the manga app ---- */
+class ZipEntry {
+  constructor(file, meta) {
+    this.file = file;
+    this.name = meta.name;
+    this.method = meta.method;
+    this.compSize = meta.compSize;
+    this.size = meta.size;
+    this.localOffset = meta.localOffset;
+    this.isDirectory = meta.name.endsWith('/');
+    this.encrypted = !!(meta.flags & 1);
+  }
+
+  get supported() {
+    return !this.encrypted && (this.method === 0 || this.method === 8);
+  }
+
+  /** Extract this entry into a Blob (optionally tagged with a MIME type). */
+  async read(type = '') {
+    const head = new DataView(await this.file.slice(this.localOffset, this.localOffset + 30).arrayBuffer());
+    if (head.byteLength < 30 || head.getUint32(0, true) !== 0x04034b50) {
+      throw new Error('Corrupt ZIP entry: ' + this.name);
+    }
+    const start = this.localOffset + 30 + head.getUint16(26, true) + head.getUint16(28, true);
+    const raw = this.file.slice(start, start + this.compSize);
+    if (this.method === 0) return new Blob([raw], { type });
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('This browser cannot decompress ZIP files (DecompressionStream is missing).');
+    }
+    const stream = raw.stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    const out = await new Response(stream).blob();
+    return out.slice(0, out.size, type);
+  }
+}
+
+class ZipArchive {
+  /** Open a File/Blob and parse its central directory. */
+  static async open(file) {
+    const size = file.size;
+    if (size < 22) throw new Error('Not a valid ZIP archive.');
+
+    // 1. Locate the "end of central directory" record in the last 64 KB.
+    const tailLen = Math.min(size, 22 + 65535);
+    const tail = new DataView(await file.slice(size - tailLen).arrayBuffer());
+    let eocd = -1;
+    for (let i = tailLen - 22; i >= 0; i--) {
+      if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Not a valid ZIP archive (end record not found).');
+
+    let count = tail.getUint16(eocd + 10, true);
+    let cdSize = tail.getUint32(eocd + 12, true);
+    let cdOffset = tail.getUint32(eocd + 16, true);
+
+    // 2. ZIP64: real values live in the ZIP64 end record.
+    if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) {
+      const loc = eocd - 20;
+      if (loc < 0 || tail.getUint32(loc, true) !== 0x07064b50) throw new Error('Unsupported ZIP64 archive.');
+      const z64Offset = Number(tail.getBigUint64(loc + 8, true));
+      const z64 = new DataView(await file.slice(z64Offset, z64Offset + 56).arrayBuffer());
+      if (z64.byteLength < 56 || z64.getUint32(0, true) !== 0x06064b50) throw new Error('Corrupt ZIP64 archive.');
+      count = Number(z64.getBigUint64(32, true));
+      cdSize = Number(z64.getBigUint64(40, true));
+      cdOffset = Number(z64.getBigUint64(48, true));
+    }
+
+    // 3. Parse the central directory.
+    const cd = new DataView(await file.slice(cdOffset, cdOffset + cdSize).arrayBuffer());
+    const decoder = new TextDecoder('utf-8');
+    const entries = [];
+    let p = 0;
+    for (let n = 0; n < count && p + 46 <= cd.byteLength; n++) {
+      if (cd.getUint32(p, true) !== 0x02014b50) break;
+      const flags = cd.getUint16(p + 8, true);
+      const method = cd.getUint16(p + 10, true);
+      let compSize = cd.getUint32(p + 20, true);
+      let usize = cd.getUint32(p + 24, true);
+      const nameLen = cd.getUint16(p + 28, true);
+      const extraLen = cd.getUint16(p + 30, true);
+      const commentLen = cd.getUint16(p + 32, true);
+      let localOffset = cd.getUint32(p + 42, true);
+      const name = decoder.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nameLen));
+
+      if (usize === 0xffffffff || compSize === 0xffffffff || localOffset === 0xffffffff) {
+        let q = p + 46 + nameLen;
+        const end = q + extraLen;
+        while (q + 4 <= end) {
+          const id = cd.getUint16(q, true);
+          const len = cd.getUint16(q + 2, true);
+          if (id === 0x0001) {
+            let r = q + 4;
+            if (usize === 0xffffffff) { usize = Number(cd.getBigUint64(r, true)); r += 8; }
+            if (compSize === 0xffffffff) { compSize = Number(cd.getBigUint64(r, true)); r += 8; }
+            if (localOffset === 0xffffffff) { localOffset = Number(cd.getBigUint64(r, true)); r += 8; }
+            break;
+          }
+          q += 4 + len;
+        }
+      }
+      entries.push(new ZipEntry(file, { name, flags, method, compSize, size: usize, localOffset }));
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    return new ZipArchive(entries);
+  }
+
+  constructor(entries) { this.entries = entries; }
+}
+
+/* ---- Manga import: files, folders, .cbz/.zip ---- */
+const isImg = (n) => /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(n);
+const isArc = (n) => /\.(cbz|zip)$/i.test(n);
+const stripExt = (n) => n.replace(/\.[^.]+$/, '');
+const mimeOf = (n) => ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp', avif: 'image/avif' })[(n.split('.').pop() || '').toLowerCase()] || 'image/jpeg';
+let mgDone = 0, mgTotal = 0;
+mgTick = () => { mgDone++; mgStatus(`Importing… ${mgDone}/${mgTotal} pages`); };
+function mgStatus(t) { const e = document.getElementById('mgStatus'); if (e) e.textContent = t || ''; }
+async function archiveGroups(file) {
+  const zip = await ZipArchive.open(file), g = new Map();
+  for (const e of zip.entries) {
+    const parts = e.name.split('/').filter(Boolean), name = parts.pop();
+    if (!name || !isImg(name) || parts.some(s => s.startsWith('.') || s === '__MACOSX')) continue;
+    const k = parts.join(' – '); if (!g.has(k)) g.set(k, []); g.get(k).push({ e, name });
+  }
+  const out = [];
+  for (const [k, list] of g) {
+    const files = [];
+    for (const { e, name } of list) files.push(new File([await e.read(mimeOf(name))], name, { type: mimeOf(name) }));
+    out.push({ chapter: g.size === 1 ? stripExt(file.name) : (k || stripExt(file.name)), files });
+  }
+  return out;
+}
+async function runMangaGroups(groups) {
+  mgTotal = groups.reduce((n, g) => n + g.files.length, 0); mgDone = 0;
+  let pages = 0, last = null;
+  for (const g of groups) { pages += await addMangaChapter(g.title, g.chapter, g.files); last = g; }
+  mgStatus('');
+  if (pages) mangaImported(pages, last.title, groups.length > 1 ? groups.length + ' chapters' : last.chapter);
+  else alert('No readable images found.');
+}
 document.getElementById('importMangaFile')?.addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
+  const files = Array.from(e.target.files || []); e.target.value = '';
   if (!files.length) return;
-  const { title, chapter } = parseMangaPath(document.getElementById('mgPath').value);
-  if (!title) { alert('Type the path first, e.g. Naruto/Chapter 1, then pick the panels.'); return; }
-  const n = await addMangaChapter(title, chapter, files);
-  if (n) mangaImported(n, title, chapter);
+  const raw = document.getElementById('mgPath').value, p = parseMangaPath(raw), explicit = raw.includes('/');
+  let title = p.title || (prompt('Manga title:', '') || '').trim();
+  if (!title) return;
+  const ex = store.chillMedia.find(x => x.type === 'manga' && x.title.toLowerCase() === title.toLowerCase());
+  const chapter = explicit ? p.chapter : 'Chapter ' + (ex ? mangaChapters(ex).length + 1 : 1);
+  const groups = [], imgs = files.filter(f => isImg(f.name) || (f.type || '').startsWith('image/'));
+  if (imgs.length) groups.push({ title, chapter, files: imgs });
+  try {
+    for (const f of files.filter(f => isArc(f.name))) for (const a of await archiveGroups(f)) groups.push({ title, chapter: a.chapter, files: a.files });
+  } catch (err) { alert(err.message); }
+  if (groups.length) await runMangaGroups(groups);
 });
 document.getElementById('importMangaFolder')?.addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
+  const items = Array.from(e.target.files || []).map(f => ({ f, p: (f.webkitRelativePath || f.name).split('/') }))
+    .filter(x => !x.p.some(s => s.startsWith('.') || s === '__MACOSX'));
   e.target.value = '';
-  const groups = {};
-  const fallback = parseMangaPath(document.getElementById('mgPath').value).title;
-  for (const f of files) {
-    const p = (f.webkitRelativePath || '').split('/');
-    let title, chapter;
-    if (p.length >= 3) { title = p[0]; chapter = p[1]; }
-    else if (p.length === 2) { title = fallback || prompt('Manga title for "' + p[0] + '":', ''); chapter = p[0]; }
-    if (!title) continue;
-    (groups[title + '\u0000' + chapter] ||= { title, chapter, files: [] }).files.push(f);
-  }
-  let total = 0, last = null;
-  for (const g of Object.values(groups)) { total += await addMangaChapter(g.title, g.chapter, g.files); last = g; }
-  if (total) mangaImported(total, last.title, Object.keys(groups).length > 1 ? Object.keys(groups).length + ' chapters' : last.chapter);
-  else alert('No images found in that folder.');
+  if (!items.length) return;
+  const root = items[0].p[0], deep = items.some(x => x.p.length >= 4), map = new Map();
+  const add = (title, chapter, files) => { const k = title + '\0' + chapter; if (!map.has(k)) map.set(k, { title, chapter, files: [] }); map.get(k).files.push(...files); };
+  try {
+    for (const { f, p } of items) {
+      const rel = p.slice(1);
+      if (isArc(f.name)) {
+        const title = deep && rel.length > 1 ? rel[0] : root;
+        for (const a of await archiveGroups(f)) add(title, a.chapter, a.files);
+      } else if (isImg(f.name)) {
+        if (deep) add(rel.length > 1 ? rel[0] : root, rel.length > 2 ? rel.slice(1, -1).join(' – ') : 'Chapter 1', [f]);
+        else add(root, rel.length > 1 ? rel.slice(0, -1).join(' – ') : 'Chapter 1', [f]);
+      }
+    }
+  } catch (err) { alert(err.message); }
+  if (map.size) await runMangaGroups([...map.values()]);
+  else alert('No images or .cbz files found in that folder.');
 });
+
+/* ---- Thumbnails (music art, video frame, manga cover) ---- */
+const thumbUrls = new Map(), thumbBad = new Set();
+const hueOf = (s) => { let h = 0; for (const c of String(s || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const artStyle = (t) => { const h = hueOf(t); return `background:linear-gradient(135deg,hsl(${h},55%,38%),hsl(${(h + 50) % 360},60%,22%))`; };
+async function blobToThumb(blob, w) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const sc = Math.min(1, w / bmp.width);
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(bmp.width * sc)); cv.height = Math.max(1, Math.round(bmp.height * sc));
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close?.();
+    return await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.82));
+  } catch { return null; }
+}
+async function id3Cover(blob) { // embedded album art from ID3v2 (mp3)
+  try {
+    const h = new Uint8Array(await blob.slice(0, 10).arrayBuffer());
+    if (h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33) return null;
+    const ver = h[3], size = ((h[6] & 127) << 21) | ((h[7] & 127) << 14) | ((h[8] & 127) << 7) | (h[9] & 127);
+    const buf = new Uint8Array(await blob.slice(10, 10 + Math.min(size, 12 * 1024 * 1024)).arrayBuffer());
+    const dv = new DataView(buf.buffer), idLen = ver === 2 ? 3 : 4, hdr = ver === 2 ? 6 : 10;
+    let p = 0;
+    while (p + hdr < buf.length) {
+      const id = String.fromCharCode(...buf.slice(p, p + idLen));
+      if (!/^[A-Z0-9]+$/.test(id)) break;
+      const fs = ver === 2 ? (buf[p + 3] << 16) | (buf[p + 4] << 8) | buf[p + 5]
+        : ver === 4 ? ((buf[p + 4] & 127) << 21) | ((buf[p + 5] & 127) << 14) | ((buf[p + 6] & 127) << 7) | (buf[p + 7] & 127)
+        : dv.getUint32(p + 4);
+      const body = p + hdr, endB = body + fs;
+      if (id === 'APIC' || id === 'PIC') {
+        const enc = buf[body]; let q = body + 1;
+        if (id === 'APIC') { while (q < endB && buf[q] !== 0) q++; q++; } else q += 3;
+        q++;
+        if (enc === 1 || enc === 2) { while (q + 1 < endB && !(buf[q] === 0 && buf[q + 1] === 0)) q += 2; q += 2; }
+        else { while (q < endB && buf[q] !== 0) q++; q++; }
+        const img = buf.slice(q, endB);
+        return img.length > 100 ? new Blob([img], { type: img[0] === 0x89 ? 'image/png' : 'image/jpeg' }) : null;
+      }
+      if (fs <= 0) break;
+      p = endB;
+    }
+  } catch {}
+  return null;
+}
+function videoFrame(blob) {
+  return new Promise(res => {
+    const v = document.createElement('video'), url = URL.createObjectURL(blob);
+    v.muted = true; v.preload = 'auto'; v.playsInline = true;
+    let done = false;
+    const fin = (r) => { if (done) return; done = true; URL.revokeObjectURL(url); v.removeAttribute('src'); v.load(); res(r); };
+    v.onerror = () => fin(null);
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 2) * 0.1); };
+    v.onseeked = () => {
+      try {
+        const sc = Math.min(1, 480 / (v.videoWidth || 480)), cv = document.createElement('canvas');
+        cv.width = Math.round((v.videoWidth || 480) * sc); cv.height = Math.round((v.videoHeight || 270) * sc);
+        cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+        const dur = v.duration;
+        cv.toBlob(b => fin(b ? { blob: b, dur } : null), 'image/jpeg', 0.8);
+      } catch { fin(null); }
+    };
+    setTimeout(() => fin(null), 10000);
+    v.src = url;
+  });
+}
+async function getThumbUrl(m) {
+  if (thumbUrls.has(m.id)) return thumbUrls.get(m.id);
+  if (thumbBad.has(m.id)) return null;
+  let blob = await chillGetBlob('thumb:' + m.id).catch(() => null);
+  if (!blob) {
+    try {
+      if (m.type === 'music') { const s = await chillGetBlob(m.id); const a = s && await id3Cover(s); blob = a && await blobToThumb(a, 400); }
+      else if (m.type === 'video') {
+        const s = await chillGetBlob(m.id), r = s && await videoFrame(s);
+        if (r) { blob = r.blob; if (r.dur && !m.duration) { m.duration = r.dur; save(); } }
+      } else if (m.type === 'manga') { const p = mangaAllPages(m)[0]; const s = p && await chillGetBlob(p.id); blob = s && await blobToThumb(s, 360); }
+    } catch {}
+    if (blob) await chillPut('thumb:' + m.id, blob).catch(() => {});
+  }
+  if (!blob) { thumbBad.add(m.id); return null; }
+  const url = URL.createObjectURL(blob); thumbUrls.set(m.id, url); return url;
+}
+function hydrateThumbs(root) {
+  root.querySelectorAll('[data-thumb]').forEach(async el => {
+    const m = store.chillMedia.find(x => x.id === el.dataset.thumb);
+    if (!m) return;
+    const u = await getThumbUrl(m);
+    if (!el.isConnected) return;
+    if (u) { el.style.backgroundImage = `url(${u})`; el.classList.add('has'); }
+    const d = el.querySelector('.dur'); if (d && m.duration) d.textContent = fmtT(m.duration);
+  });
+}
 
 /* ---- Music (full-screen player + lyrics) ---- */
 let chillQueue = [];
@@ -2166,6 +2413,7 @@ function drawMusic() {
   chillQueue = store.chillMedia.filter(m => m.type === 'music').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
   el.innerHTML = chillQueue.length ? chillQueue.map((m, i) => `
     <div class="chill-row${i===chillQueueIndex?' playing':''}" data-play="${i}">
+      <div class="thumb sq" data-thumb="${m.id}" style="${artStyle(m.title)}"><span>♪</span></div>
       <div class="chill-row-main">
         <div class="chill-row-title">${esc(m.title)}</div>
         <div class="chill-row-sub">${fileSize(m.size)}${m.lyrics ? ' · ♫ lyrics' : ''}</div>
@@ -2175,6 +2423,7 @@ function drawMusic() {
   el.querySelectorAll('[data-play]').forEach(row => {
     row.addEventListener('click', async () => { await playChillTrack(Number(row.dataset.play)); $c('nowPlaying').hidden = false; });
   });
+  hydrateThumbs(el);
 }
 function syncPlayUi() {
   const p = !chillAudio.paused;
@@ -2195,6 +2444,9 @@ async function playChillTrack(i) {
   $c('mpTitle').textContent = m.title;
   $c('npTitle').textContent = m.title;
   $c('miniPlayer').hidden = false;
+  const art = $c('npArt'), mt = $c('mpThumb');
+  art.style.cssText = mt.style.cssText = artStyle(m.title); art.textContent = mt.textContent = '♪';
+  getThumbUrl(m).then(u => { if (u && chillQueue[chillQueueIndex] === m) { art.style.backgroundImage = mt.style.backgroundImage = `url(${u})`; art.textContent = mt.textContent = ''; } });
   drawLyrics(false); syncPlayUi(); drawMusic();
 }
 function nextIndex(dir) {
@@ -2262,12 +2514,13 @@ function drawWatch() {
   if (!el) return;
   const items = store.chillMedia.filter(m => m.type === 'video').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
   el.innerHTML = items.length ? items.map(m => `
-    <div class="chill-tile" data-watch="${m.id}">
-      <div class="chill-tile-icon">▶</div>
+    <div class="chill-tile vt" data-watch="${m.id}">
+      <div class="thumb wide" data-thumb="${m.id}" style="${artStyle(m.title)}"><span class="play">▶</span><span class="dur">${m.duration ? fmtT(m.duration) : ''}</span></div>
       <div class="chill-tile-title">${esc(m.title)}</div>
       <div class="chill-tile-sub">${fileSize(m.size)}</div>
     </div>`).join('') : '<div class="empty">No videos imported yet — go to Import</div>';
   el.querySelectorAll('[data-watch]').forEach(tile => tile.addEventListener('click', () => openVideo(tile.dataset.watch)));
+  hydrateThumbs(el);
 }
 let vidUrl = null, vpHide = null, vpSeeking = false, vpLastTap = 0;
 const vpV = $c('vpVideo');
@@ -2339,46 +2592,117 @@ function drawManga() {
   const el = document.getElementById('mangaGrid');
   if (!el) return;
   const items = store.chillMedia.filter(m => m.type === 'manga').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
-  el.innerHTML = items.length ? items.map(m => `
-    <div class="chill-tile" data-manga="${m.id}">
-      <div class="chill-tile-icon">📖</div>
+  el.innerHTML = items.length ? items.map(m => {
+    const pr = (store.chillProgress || {})[m.id], ch = pr && mangaChapters(m)[pr.ci];
+    return `<div class="chill-tile mt" data-manga="${m.id}">
+      <div class="thumb tall" data-thumb="${m.id}" style="${artStyle(m.title)}"><span>📖</span></div>
       <div class="chill-tile-title">${esc(m.title)}</div>
-      <div class="chill-tile-sub">${mangaSub(m)}</div>
-    </div>`).join('') : '<div class="empty">No manga imported yet — go to Import</div>';
+      <div class="chill-tile-sub">${ch ? 'Continue · ' + esc(ch.name) : mangaSub(m)}</div>
+    </div>`; }).join('') : '<div class="empty">No manga imported yet — go to Import</div>';
   el.querySelectorAll('[data-manga]').forEach(tile => tile.addEventListener('click', () => openManga(tile.dataset.manga)));
+  hydrateThumbs(el);
 }
-async function openManga(mid, chIdx) {
-  const m = store.chillMedia.find(x => x.id === mid);
-  if (!m) return;
-  const chs = mangaChapters(m);
-  const body = document.getElementById('dlgBody');
-  document.getElementById('dlgTitle').textContent = m.title;
-  document.querySelector('.dialog')?.classList.add('dialog-wide');
-  document.getElementById('backdrop').classList.add('open');
-  if (chIdx == null) {
-    body.innerHTML = chs.length ? chs.map((c, i) => `
-      <div class="chill-row" data-ch="${i}"><div class="chill-row-main"><div class="chill-row-title">${esc(c.name)}</div>
-      <div class="chill-row-sub">${(c.pages||[]).length} page${(c.pages||[]).length===1?'':'s'}</div></div><span class="chill-row-icon">▶</span></div>`).join('')
-      : '<div class="empty">No chapters</div>';
-    body.querySelectorAll('[data-ch]').forEach(r => r.addEventListener('click', () => openManga(mid, Number(r.dataset.ch))));
-    return;
-  }
-  revokeChillUrls();
-  const ch = chs[chIdx];
-  const imgs = [];
-  for (const p of [...(ch.pages || [])].sort((a, b) => a.order - b.order)) {
-    const blob = await chillGetBlob(p.id);
-    if (blob) imgs.push(trackChillUrl(URL.createObjectURL(blob)));
-  }
-  const nav = `<div class="mg-nav">
-      <button type="button" class="btn btn-ghost" ${chIdx>0?`data-go="${chIdx-1}"`:'disabled'}>‹ Prev</button>
-      <button type="button" class="btn btn-ghost" data-go="list">☰ ${esc(ch.name)}</button>
-      <button type="button" class="btn btn-ghost" ${chIdx<chs.length-1?`data-go="${chIdx+1}"`:'disabled'}>Next ›</button></div>`;
-  body.innerHTML = nav + (imgs.length ? `<div class="manga-reader">${imgs.map(u => `<img src="${u}" loading="lazy">`).join('')}</div>` : '<div class="empty">No pages</div>') + nav;
-  body.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
-    openManga(mid, b.dataset.go === 'list' ? null : Number(b.dataset.go)); body.scrollTop = 0; document.querySelector('.dialog')?.scrollTo?.(0, 0);
-  }));
+
+/* ---- Manga reader: vertical scroll / paged LTR / paged RTL, resume, chapters ---- */
+let rd = null, rdSave = null;
+const rdMode = () => localStorage.getItem('nexus_mg_mode') || 'vertical';
+const MODE_LABEL = { vertical: '⇵ Scroll', ltr: '→ LTR', rtl: '← RTL' };
+function rdRelease() {
+  rd?.io?.disconnect();
+  (rd?.urls || []).forEach(u => URL.revokeObjectURL(u));
+  if (rd) rd.urls = [];
 }
+async function openManga(mid) {
+  const m = store.chillMedia.find(x => x.id === mid); if (!m) return;
+  const chs = mangaChapters(m); if (!chs.length) return;
+  const pr = (store.chillProgress || {})[mid];
+  rd = { m, chs, ci: 0, page: 0, pages: [], urls: [], token: 0 };
+  $c('mgTitle').textContent = m.title;
+  $c('mgReader').hidden = false; $c('mgReader').classList.remove('off'); $c('mgChapters').hidden = true;
+  $c('mgMode').textContent = MODE_LABEL[rdMode()];
+  await loadChapter(pr ? Math.min(pr.ci, chs.length - 1) : 0, pr ? pr.page : 0);
+}
+async function loadChapter(ci, start = 0) {
+  rdRelease();
+  rd.ci = ci; rd.page = start; rd.token++;
+  const ch = rd.chs[ci], tk = rd.token;
+  rd.pages = [...(ch.pages || [])].sort((a, b) => a.order - b.order);
+  rd.mode = rdMode();
+  $c('mgChName').textContent = ch.name;
+  const st = $c('mgStage'); st.innerHTML = ''; st.scrollTop = 0;
+  st.className = 'mg-stage ' + (rd.mode === 'vertical' ? 'v' : 'p');
+  if (rd.mode === 'vertical') buildVertical(tk, start); else await showPage(start);
+  updatePg(); saveProg();
+}
+function buildVertical(tk, start) {
+  const st = $c('mgStage');
+  const wraps = rd.pages.map((p, i) => { const w = document.createElement('div'); w.className = 'mg-pg'; w.dataset.i = i; st.appendChild(w); return w; });
+  const end = document.createElement('div'); end.className = 'mg-end';
+  end.innerHTML = rd.ci < rd.chs.length - 1 ? '<button type="button" class="btn btn-gold" id="mgEndNext">Next chapter ›</button>' : '<div>End of series</div>';
+  st.appendChild(end);
+  $c('mgEndNext')?.addEventListener('click', (e) => { e.stopPropagation(); goCh(1); });
+  rd.io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) loadWrap(e.target, tk); }), { root: st, rootMargin: '1500px 0px' });
+  wraps.forEach(w => rd.io.observe(w));
+  if (start && wraps[start]) requestAnimationFrame(() => { st.scrollTop = wraps[start].offsetTop; });
+}
+async function loadWrap(w, tk) {
+  if (w.dataset.l) return; w.dataset.l = 1;
+  const blob = await chillGetBlob(rd.pages[w.dataset.i].id).catch(() => null);
+  if (!blob || tk !== rd.token) return;
+  const u = URL.createObjectURL(blob); rd.urls.push(u);
+  const img = new Image(); img.src = u; img.onload = () => w.classList.add('ok'); w.appendChild(img);
+}
+async function showPage(i) {
+  if (!rd.pages.length) return;
+  i = Math.max(0, Math.min(rd.pages.length - 1, i)); rd.page = i;
+  const tk = rd.token, blob = await chillGetBlob(rd.pages[i].id).catch(() => null);
+  if (tk !== rd.token || !blob) return;
+  if (rd.cur) { URL.revokeObjectURL(rd.cur); rd.urls = rd.urls.filter(x => x !== rd.cur); }
+  rd.cur = URL.createObjectURL(blob); rd.urls.push(rd.cur);
+  $c('mgStage').innerHTML = `<img class="mg-one" src="${rd.cur}">`;
+  updatePg(); saveProg();
+}
+function updatePg() { $c('mgPg').textContent = rd.pages.length ? `${rd.page + 1} / ${rd.pages.length}` : '0 / 0'; }
+function saveProg() {
+  clearTimeout(rdSave);
+  rdSave = setTimeout(() => { if (!rd) return; (store.chillProgress ||= {})[rd.m.id] = { ci: rd.ci, page: rd.page, t: Date.now() }; save(); }, 400);
+}
+async function goCh(d, toLast) {
+  const n = rd.ci + d; if (n < 0 || n >= rd.chs.length) return;
+  await loadChapter(n, toLast ? Math.max(0, (rd.chs[n].pages || []).length - 1) : 0);
+}
+function pageStep(d) { // d: +1 forward / -1 back
+  const n = rd.page + d;
+  if (n >= rd.pages.length) goCh(1); else if (n < 0) goCh(-1, true); else showPage(n);
+}
+$c('mgStage')?.addEventListener('scroll', () => {
+  if (!rd || rd.mode !== 'vertical') return;
+  const st = $c('mgStage'), ws = [...st.querySelectorAll('.mg-pg')];
+  const i = ws.findIndex(w => w.offsetTop + w.offsetHeight > st.scrollTop + st.clientHeight * 0.4);
+  if (i >= 0 && i !== rd.page) { rd.page = i; updatePg(); saveProg(); }
+});
+$c('mgStage')?.addEventListener('click', (e) => {
+  if (!rd) return;
+  const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width;
+  if (rd.mode !== 'vertical' && (x < 0.3 || x > 0.7)) { const fwd = x > 0.7; pageStep((rd.mode === 'rtl' ? !fwd : fwd) ? 1 : -1); return; }
+  $c('mgReader').classList.toggle('off');
+});
+$c('mgClose')?.addEventListener('click', () => { saveProg(); clearTimeout(rdSave); if (rd) { (store.chillProgress ||= {})[rd.m.id] = { ci: rd.ci, page: rd.page, t: Date.now() }; save(); } rdRelease(); rd = null; $c('mgReader').hidden = true; drawManga(); });
+$c('mgPrevCh')?.addEventListener('click', () => goCh(-1));
+$c('mgNextCh')?.addEventListener('click', () => goCh(1));
+$c('mgMode')?.addEventListener('click', () => {
+  const nx = { vertical: 'ltr', ltr: 'rtl', rtl: 'vertical' }[rdMode()];
+  localStorage.setItem('nexus_mg_mode', nx); $c('mgMode').textContent = MODE_LABEL[nx];
+  if (rd) loadChapter(rd.ci, rd.page);
+});
+$c('mgChBtn')?.addEventListener('click', () => {
+  const box = $c('mgChapters'); if (!rd) return;
+  box.innerHTML = '<div class="mg-ch-head">Chapters <button type="button" id="mgChX" class="btn-icon">✕</button></div>' + rd.chs.map((c, i) =>
+    `<div class="chill-row${i === rd.ci ? ' playing' : ''}" data-ch="${i}"><div class="chill-row-main"><div class="chill-row-title">${esc(c.name)}</div><div class="chill-row-sub">${(c.pages || []).length} pages</div></div></div>`).join('');
+  box.hidden = false;
+  $c('mgChX').onclick = () => { box.hidden = true; };
+  box.querySelectorAll('[data-ch]').forEach(r => r.onclick = () => { box.hidden = true; loadChapter(Number(r.dataset.ch), 0); });
+});
 
 function drawStories() {
   const el = document.getElementById('storyList');

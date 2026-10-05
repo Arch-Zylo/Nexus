@@ -564,6 +564,7 @@
         <div id="musicList" class="chill-list"></div>
         <div class="mini-player" id="miniPlayer" hidden>
           <div class="mp-prog" id="mpProg"></div>
+          <div class="mp-thumb" id="mpThumb">♪</div>
           <div class="mini-player-info" id="mpOpen" title="Open player">
             <div class="mini-player-title" id="mpTitle">—</div>
             <div class="mini-player-sub" id="mpSub">Not playing</div>
@@ -638,9 +639,10 @@
         <div id="importMangaMode" hidden>
           <div class="manga-form">
             <input id="mgPath" list="mgTitles" placeholder="manga_title/chapter 1" autocomplete="off"><datalist id="mgTitles"></datalist>
-            <label class="btn btn-gold import-picker">+ Add panels (select many)<input type="file" id="importMangaFile" accept="image/*" multiple hidden></label>
+            <label class="btn btn-gold import-picker">+ Add images / .cbz / .zip<input type="file" id="importMangaFile" accept="image/*,.cbz,.zip" multiple hidden></label>
             <label class="btn btn-ghost import-picker">Import folder<input type="file" id="importMangaFolder" webkitdirectory multiple hidden></label>
-            <p class="mg-hint">Type <b>manga_title/chapter 1</b>, then select all the panels in one go (image1, image2, … image10 are ordered by file name). "Import folder" reads <b>title/chapter/images</b> automatically.</p>
+            <div class="mg-hint" id="mgStatus"></div>
+            <p class="mg-hint">Type <b>manga_title/chapter 1</b>, then select all panels at once (ordered by file name). <b>Import folder</b>: a series folder with one sub-folder per chapter, or a folder of series — chapters are detected automatically. Each <b>.cbz/.zip</b> becomes a chapter.</p>
           </div>
           <div id="importMangaList" class="chill-list"></div>
         </div>
@@ -665,7 +667,7 @@
   <div class="np-top"><button type="button" class="btn-icon" id="npClose" title="Close">⌄</button><span>Now Playing</span><span></span></div>
   <div class="np-tabs"><button type="button" class="tt-mode on" data-np-tab="player">Player</button><button type="button" class="tt-mode" data-np-tab="lyrics">Lyrics</button></div>
   <div id="npPlayer">
-    <div class="np-art">♪</div>
+    <div class="np-art" id="npArt">♪</div>
     <div class="np-title" id="npTitle">—</div>
     <input type="range" id="npSeek" class="np-seek" min="0" max="1000" value="0">
     <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
@@ -684,6 +686,12 @@
       <div class="np-lyr-actions"><button type="button" class="btn btn-gold" id="npLyricsSave">Save</button><button type="button" class="btn btn-ghost" id="npLyricsCancel">Cancel</button></div>
     </div>
   </div>
+</div>
+<div class="mg-reader" id="mgReader" hidden>
+  <div class="mg-bar mg-top"><button type="button" id="mgClose">✕</button><div class="mg-tt"><div id="mgTitle"></div><small id="mgChName"></small></div><button type="button" id="mgMode"></button><button type="button" id="mgChBtn">☰</button></div>
+  <div class="mg-stage v" id="mgStage"></div>
+  <div class="mg-bar mg-bot"><button type="button" id="mgPrevCh">‹ Ch</button><span id="mgPg">0 / 0</span><button type="button" id="mgNextCh">Ch ›</button></div>
+  <div class="mg-chapters" id="mgChapters" hidden></div>
 </div>
 <div class="vp" id="vidPlayer" hidden>
   <video id="vpVideo" playsinline></video>
