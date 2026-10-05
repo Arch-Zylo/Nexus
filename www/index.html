@@ -563,7 +563,8 @@
         <div class="hero"><h1>Music</h1></div>
         <div id="musicList" class="chill-list"></div>
         <div class="mini-player" id="miniPlayer" hidden>
-          <div class="mini-player-info">
+          <div class="mp-prog" id="mpProg"></div>
+          <div class="mini-player-info" id="mpOpen" title="Open player">
             <div class="mini-player-title" id="mpTitle">—</div>
             <div class="mini-player-sub" id="mpSub">Not playing</div>
           </div>
@@ -635,7 +636,12 @@
           <div id="importVideoList" class="chill-list"></div>
         </div>
         <div id="importMangaMode" hidden>
-          <label class="btn btn-gold import-picker">+ New Series (select panel images)<input type="file" id="importMangaFile" accept="image/*" multiple hidden></label>
+          <div class="manga-form">
+            <input id="mgPath" list="mgTitles" placeholder="manga_title/chapter 1" autocomplete="off"><datalist id="mgTitles"></datalist>
+            <label class="btn btn-gold import-picker">+ Add panels (select many)<input type="file" id="importMangaFile" accept="image/*" multiple hidden></label>
+            <label class="btn btn-ghost import-picker">Import folder<input type="file" id="importMangaFolder" webkitdirectory multiple hidden></label>
+            <p class="mg-hint">Type <b>manga_title/chapter 1</b>, then select all the panels in one go (image1, image2, … image10 are ordered by file name). "Import folder" reads <b>title/chapter/images</b> automatically.</p>
+          </div>
           <div id="importMangaList" class="chill-list"></div>
         </div>
         <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device only — they are not included in Settings → Backup export.</p>
@@ -653,6 +659,38 @@
       <button class="btn-icon" id="dlgClose">✕</button>
     </div>
     <div class="dialog-body" id="dlgBody"></div>
+  </div>
+</div>
+<div class="np" id="nowPlaying" hidden>
+  <div class="np-top"><button type="button" class="btn-icon" id="npClose" title="Close">⌄</button><span>Now Playing</span><span></span></div>
+  <div class="np-tabs"><button type="button" class="tt-mode on" data-np-tab="player">Player</button><button type="button" class="tt-mode" data-np-tab="lyrics">Lyrics</button></div>
+  <div id="npPlayer">
+    <div class="np-art">♪</div>
+    <div class="np-title" id="npTitle">—</div>
+    <input type="range" id="npSeek" class="np-seek" min="0" max="1000" value="0">
+    <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
+    <div class="np-controls">
+      <button type="button" id="npShuffle" title="Shuffle">⇄</button>
+      <button type="button" id="npPrev" title="Previous">⏮</button>
+      <button type="button" id="npPlay" class="np-play" title="Play/Pause">▶</button>
+      <button type="button" id="npNext" title="Next">⏭</button>
+      <button type="button" id="npRepeat" title="Repeat">↻</button>
+    </div>
+  </div>
+  <div id="npLyrics" hidden>
+    <div id="npLyricsView"><div class="np-lyr-body" id="npLyricsBody"></div><button type="button" class="btn btn-gold" id="npLyricsEditBtn">Add lyrics</button></div>
+    <div id="npLyricsEdit" hidden>
+      <textarea id="npLyricsText" class="np-lyr-text" placeholder="Paste or type lyrics here…"></textarea>
+      <div class="np-lyr-actions"><button type="button" class="btn btn-gold" id="npLyricsSave">Save</button><button type="button" class="btn btn-ghost" id="npLyricsCancel">Cancel</button></div>
+    </div>
+  </div>
+</div>
+<div class="vp" id="vidPlayer" hidden>
+  <video id="vpVideo" playsinline></video>
+  <div class="vp-ui" id="vpUi">
+    <div class="vp-top"><button type="button" id="vpClose">✕</button><span id="vpTitle"></span></div>
+    <div class="vp-mid"><button type="button" id="vpBack">⟲ 10</button><button type="button" id="vpPlay" class="vp-big">⏸</button><button type="button" id="vpFwd">10 ⟳</button></div>
+    <div class="vp-bot"><span id="vpCur">0:00</span><input type="range" id="vpSeek" min="0" max="1000" value="0"><span id="vpDur">0:00</span><button type="button" id="vpSpeed">1×</button><button type="button" id="vpFs">⛶</button></div>
   </div>
 </div>
 <script src="circuit-bg.js"></script>

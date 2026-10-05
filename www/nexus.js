@@ -2031,6 +2031,7 @@ function fileTitle(file) {
 /* ---- Import ---- */
 let importMode = 'music';
 function setImportMode(mode) {
+  if (typeof refreshMangaTitles === 'function') refreshMangaTitles();
   importMode = ['music','video','manga'].includes(mode) ? mode : 'music';
   document.querySelectorAll('#view-import [data-import-tab]').forEach(b => b.classList.toggle('on', b.dataset.importTab === importMode));
   document.getElementById('importMusicMode').hidden = importMode !== 'music';
@@ -2050,7 +2051,7 @@ function drawImportList(type) {
     <div class="chill-row" data-mid="${m.id}">
       <div class="chill-row-main">
         <div class="chill-row-title">${esc(m.title)}</div>
-        <div class="chill-row-sub">${m.type === 'manga' ? (m.pages?.length||0) + ' page' + ((m.pages?.length||0)===1?'':'s') : fileSize(m.size)}</div>
+        <div class="chill-row-sub">${m.type === 'manga' ? mangaSub(m) : fileSize(m.size)}</div>
       </div>
       <button type="button" class="btn-icon" data-del-media="${m.id}" title="Delete">✕</button>
     </div>`).join('') : '<div class="empty">Nothing imported yet</div>';
@@ -2061,7 +2062,7 @@ function drawImportList(type) {
       if (!m) return;
       if (!confirm(`Delete "${m.title}"?`)) return;
       if (m.type === 'manga') {
-        for (const p of (m.pages || [])) { try { await chillDeleteBlob(p.id); } catch {} }
+        for (const p of mangaAllPages(m)) { try { await chillDeleteBlob(p.id); } catch {} }
       } else {
         try { await chillDeleteBlob(m.id); } catch {}
       }
@@ -2086,75 +2087,178 @@ async function importFiles(fileList, type) {
 }
 document.getElementById('importMusicFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'music'); e.target.value = ''; });
 document.getElementById('importVideoFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'video'); e.target.value = ''; });
-document.getElementById('importMangaFile')?.addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
-  if (!files.length) return;
-  const title = prompt('Series title:', '');
-  if (title === null) return;
+/* manga: title / chapter / panels */
+function mangaChapters(m) { return m.chapters || (m.pages ? [{ id: 'c0', name: 'Chapter 1', pages: m.pages }] : []); }
+function mangaAllPages(m) { return mangaChapters(m).flatMap(c => c.pages || []); }
+function mangaSub(m) { const c = mangaChapters(m).length, p = mangaAllPages(m).length; return `${c} chapter${c===1?'':'s'} · ${p} page${p===1?'':'s'}`; }
+const natSort = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+function refreshMangaTitles() {
+  const dl = document.getElementById('mgTitles'); if (!dl) return;
+  dl.innerHTML = store.chillMedia.filter(m => m.type === 'manga').map(m => `<option value="${esc(m.title)}/"></option>`).join('');
+}
+function parseMangaPath(s) {
+  const p = (s || '').split('/').map(x => x.trim()).filter(Boolean);
+  return { title: p[0] || '', chapter: p[1] || 'Chapter 1' };
+}
+async function addMangaChapter(title, chapter, files) {
+  files = files.filter(f => (f.type || 'image/').startsWith('image/')).sort(natSort);
   const pages = [];
   for (let i = 0; i < files.length; i++) {
     const pid = id();
     try { await chillPut(pid, files[i]); } catch { continue; }
     pages.push({ id: pid, order: i });
   }
-  if (!pages.length) return;
-  store.chillMedia.push({ id: id(), type: 'manga', title: title.trim() || 'Untitled Series', pages, size: pages.length, dateAdded: Date.now() });
-  save();
-  drawImportList('manga');
-  log(`Imported manga series · ${title.trim() || 'Untitled Series'}`, COLORS[2]);
+  if (!pages.length) return 0;
+  let m = store.chillMedia.find(x => x.type === 'manga' && x.title.toLowerCase() === title.toLowerCase());
+  if (!m) { m = { id: id(), type: 'manga', title, chapters: [], size: 0, dateAdded: Date.now() }; store.chillMedia.push(m); }
+  else if (!m.chapters) { m.chapters = [{ id: id(), name: 'Chapter 1', pages: m.pages || [] }]; delete m.pages; }
+  let ch = m.chapters.find(c => c.name.toLowerCase() === chapter.toLowerCase());
+  if (!ch) { ch = { id: id(), name: chapter, pages: [] }; m.chapters.push(ch); }
+  const base = ch.pages.length;
+  pages.forEach((p, i) => { p.order = base + i; });
+  ch.pages.push(...pages);
+  m.chapters.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  m.size = mangaAllPages(m).length;
+  return pages.length;
+}
+function mangaImported(n, title, chapter) {
+  save(); drawImportList('manga'); drawManga(); refreshMangaTitles();
+  log(`Imported ${n} panel${n===1?'':'s'} · ${title} / ${chapter}`, COLORS[2]);
+}
+document.getElementById('importMangaFile')?.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (!files.length) return;
+  const { title, chapter } = parseMangaPath(document.getElementById('mgPath').value);
+  if (!title) { alert('Type the path first, e.g. Naruto/Chapter 1, then pick the panels.'); return; }
+  const n = await addMangaChapter(title, chapter, files);
+  if (n) mangaImported(n, title, chapter);
+});
+document.getElementById('importMangaFolder')?.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  const groups = {};
+  const fallback = parseMangaPath(document.getElementById('mgPath').value).title;
+  for (const f of files) {
+    const p = (f.webkitRelativePath || '').split('/');
+    let title, chapter;
+    if (p.length >= 3) { title = p[0]; chapter = p[1]; }
+    else if (p.length === 2) { title = fallback || prompt('Manga title for "' + p[0] + '":', ''); chapter = p[0]; }
+    if (!title) continue;
+    (groups[title + '\u0000' + chapter] ||= { title, chapter, files: [] }).files.push(f);
+  }
+  let total = 0, last = null;
+  for (const g of Object.values(groups)) { total += await addMangaChapter(g.title, g.chapter, g.files); last = g; }
+  if (total) mangaImported(total, last.title, Object.keys(groups).length > 1 ? Object.keys(groups).length + ' chapters' : last.chapter);
+  else alert('No images found in that folder.');
 });
 
-/* ---- Music ---- */
+/* ---- Music (full-screen player + lyrics) ---- */
 let chillQueue = [];
 let chillQueueIndex = -1;
+let shuffleOn = false, repeatMode = 'all', npSeeking = false, audioUrl = null;
 const chillAudio = document.getElementById('chillAudio');
+const $c = (i) => document.getElementById(i);
+const fmtT = (s) => { if (!isFinite(s)) return '0:00'; s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 function drawMusic() {
-  const el = document.getElementById('musicList');
+  const el = $c('musicList');
   if (!el) return;
   chillQueue = store.chillMedia.filter(m => m.type === 'music').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
   el.innerHTML = chillQueue.length ? chillQueue.map((m, i) => `
     <div class="chill-row${i===chillQueueIndex?' playing':''}" data-play="${i}">
       <div class="chill-row-main">
         <div class="chill-row-title">${esc(m.title)}</div>
-        <div class="chill-row-sub">${fileSize(m.size)}</div>
+        <div class="chill-row-sub">${fileSize(m.size)}${m.lyrics ? ' · ♫ lyrics' : ''}</div>
       </div>
       <span class="chill-row-icon">${i===chillQueueIndex && !chillAudio.paused ? '♪' : '▶'}</span>
     </div>`).join('') : '<div class="empty">No music imported yet — go to Import</div>';
   el.querySelectorAll('[data-play]').forEach(row => {
-    row.addEventListener('click', () => playChillTrack(Number(row.dataset.play)));
+    row.addEventListener('click', async () => { await playChillTrack(Number(row.dataset.play)); $c('nowPlaying').hidden = false; });
   });
+}
+function syncPlayUi() {
+  const p = !chillAudio.paused;
+  $c('mpPlay').textContent = p ? '⏸' : '▶';
+  $c('npPlay').textContent = p ? '⏸' : '▶';
+  $c('mpSub').textContent = chillAudio.src ? (p ? 'Playing' : 'Paused') : 'Not playing';
 }
 async function playChillTrack(i) {
   if (i < 0 || i >= chillQueue.length) return;
   chillQueueIndex = i;
   const m = chillQueue[i];
-  try {
-    const blob = await chillGetBlob(m.id);
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    chillAudio.src = url;
-    chillAudio.play();
-    document.getElementById('mpTitle').textContent = m.title;
-    document.getElementById('mpSub').textContent = 'Playing';
-    document.getElementById('mpPlay').textContent = '⏸';
-    document.getElementById('miniPlayer').hidden = false;
-    drawMusic();
-  } catch {}
+  const blob = await chillGetBlob(m.id).catch(() => null);
+  if (!blob) return;
+  if (audioUrl) URL.revokeObjectURL(audioUrl);
+  audioUrl = URL.createObjectURL(blob);
+  chillAudio.src = audioUrl;
+  chillAudio.play().catch(() => {});
+  $c('mpTitle').textContent = m.title;
+  $c('npTitle').textContent = m.title;
+  $c('miniPlayer').hidden = false;
+  drawLyrics(false); syncPlayUi(); drawMusic();
 }
-document.getElementById('mpPlay')?.addEventListener('click', () => {
-  if (!chillAudio.src) return;
-  if (chillAudio.paused) { chillAudio.play(); document.getElementById('mpPlay').textContent = '⏸'; document.getElementById('mpSub').textContent = 'Playing'; }
-  else { chillAudio.pause(); document.getElementById('mpPlay').textContent = '▶'; document.getElementById('mpSub').textContent = 'Paused'; }
-  drawMusic();
+function nextIndex(dir) {
+  const n = chillQueue.length; if (!n) return -1;
+  if (dir > 0 && shuffleOn && n > 1) { let r; do { r = Math.floor(Math.random() * n); } while (r === chillQueueIndex); return r; }
+  return (chillQueueIndex + dir + n) % n;
+}
+function togglePlay() { if (!chillAudio.src) return; if (chillAudio.paused) chillAudio.play(); else chillAudio.pause(); }
+function prevTrack() { if (chillAudio.currentTime > 3) chillAudio.currentTime = 0; else playChillTrack(nextIndex(-1)); }
+['mpPlay', 'npPlay'].forEach(i => $c(i)?.addEventListener('click', togglePlay));
+['mpPrev', 'npPrev'].forEach(i => $c(i)?.addEventListener('click', prevTrack));
+['mpNext', 'npNext'].forEach(i => $c(i)?.addEventListener('click', () => playChillTrack(nextIndex(1))));
+chillAudio?.addEventListener('play', () => { syncPlayUi(); drawMusic(); });
+chillAudio?.addEventListener('pause', () => { syncPlayUi(); drawMusic(); });
+chillAudio?.addEventListener('timeupdate', () => {
+  const d = chillAudio.duration || 0, t = chillAudio.currentTime;
+  if (!npSeeking) $c('npSeek').value = d ? (t / d) * 1000 : 0;
+  $c('npCur').textContent = fmtT(t); $c('npDur').textContent = fmtT(d);
+  $c('mpProg').style.width = d ? (t / d) * 100 + '%' : '0';
 });
-document.getElementById('mpPrev')?.addEventListener('click', () => playChillTrack(chillQueueIndex - 1 < 0 ? chillQueue.length - 1 : chillQueueIndex - 1));
-document.getElementById('mpNext')?.addEventListener('click', () => playChillTrack((chillQueueIndex + 1) % chillQueue.length));
-chillAudio?.addEventListener('ended', () => playChillTrack((chillQueueIndex + 1) % chillQueue.length));
+chillAudio?.addEventListener('ended', () => {
+  if (repeatMode === 'one') { chillAudio.currentTime = 0; chillAudio.play(); }
+  else if (repeatMode === 'off' && !shuffleOn && chillQueueIndex === chillQueue.length - 1) syncPlayUi();
+  else playChillTrack(nextIndex(1));
+});
+$c('npSeek')?.addEventListener('input', () => { npSeeking = true; $c('npCur').textContent = fmtT(($c('npSeek').value / 1000) * (chillAudio.duration || 0)); });
+$c('npSeek')?.addEventListener('change', () => { if (chillAudio.duration) chillAudio.currentTime = ($c('npSeek').value / 1000) * chillAudio.duration; npSeeking = false; });
+$c('npShuffle')?.addEventListener('click', () => { shuffleOn = !shuffleOn; $c('npShuffle').classList.toggle('on', shuffleOn); });
+$c('npRepeat')?.addEventListener('click', () => {
+  repeatMode = { off: 'all', all: 'one', one: 'off' }[repeatMode];
+  $c('npRepeat').textContent = repeatMode === 'one' ? '↻1' : '↻';
+  $c('npRepeat').classList.toggle('on', repeatMode !== 'off');
+});
+$c('npRepeat')?.classList.add('on');
+$c('mpOpen')?.addEventListener('click', () => { $c('nowPlaying').hidden = false; });
+$c('npClose')?.addEventListener('click', () => { $c('nowPlaying').hidden = true; });
+document.querySelectorAll('[data-np-tab]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-np-tab]').forEach(x => x.classList.toggle('on', x === b));
+  $c('npPlayer').hidden = b.dataset.npTab !== 'player';
+  $c('npLyrics').hidden = b.dataset.npTab !== 'lyrics';
+}));
 
-/* ---- Watch ---- */
+/* lyrics: add or paste per track */
+function drawLyrics(editing) {
+  const m = chillQueue[chillQueueIndex];
+  const has = !!(m && m.lyrics && m.lyrics.trim());
+  $c('npLyricsView').hidden = !!editing; $c('npLyricsEdit').hidden = !editing;
+  $c('npLyricsBody').textContent = has ? m.lyrics : 'No lyrics yet. Add or paste them for this track.';
+  $c('npLyricsBody').classList.toggle('empty', !has);
+  $c('npLyricsEditBtn').textContent = has ? 'Edit lyrics' : 'Add lyrics';
+  if (editing) { $c('npLyricsText').value = has ? m.lyrics : ''; $c('npLyricsText').focus(); }
+}
+$c('npLyricsEditBtn')?.addEventListener('click', () => { if (chillQueueIndex >= 0) drawLyrics(true); });
+$c('npLyricsCancel')?.addEventListener('click', () => drawLyrics(false));
+$c('npLyricsSave')?.addEventListener('click', () => {
+  const m = chillQueue[chillQueueIndex]; if (!m) return;
+  const v = $c('npLyricsText').value.trim();
+  if (v) m.lyrics = v; else delete m.lyrics;
+  save(); drawLyrics(false); drawMusic();
+});
+
+/* ---- Watch (full-screen video player) ---- */
 function drawWatch() {
-  const el = document.getElementById('watchGrid');
+  const el = $c('watchGrid');
   if (!el) return;
   const items = store.chillMedia.filter(m => m.type === 'video').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
   el.innerHTML = items.length ? items.map(m => `
@@ -2163,21 +2267,59 @@ function drawWatch() {
       <div class="chill-tile-title">${esc(m.title)}</div>
       <div class="chill-tile-sub">${fileSize(m.size)}</div>
     </div>`).join('') : '<div class="empty">No videos imported yet — go to Import</div>';
-  el.querySelectorAll('[data-watch]').forEach(tile => {
-    tile.addEventListener('click', () => openVideo(tile.dataset.watch));
-  });
+  el.querySelectorAll('[data-watch]').forEach(tile => tile.addEventListener('click', () => openVideo(tile.dataset.watch)));
+}
+let vidUrl = null, vpHide = null, vpSeeking = false, vpLastTap = 0;
+const vpV = $c('vpVideo');
+function vpShowUi() {
+  $c('vpUi').classList.remove('off'); clearTimeout(vpHide);
+  if (!vpV.paused) vpHide = setTimeout(() => $c('vpUi').classList.add('off'), 3000);
 }
 async function openVideo(mid) {
   const m = store.chillMedia.find(x => x.id === mid);
   if (!m) return;
   const blob = await chillGetBlob(mid);
   if (!blob) return;
-  const url = trackChillUrl(URL.createObjectURL(blob));
-  document.getElementById('dlgTitle').textContent = m.title;
-  document.getElementById('dlgBody').innerHTML = `<video class="chill-video" src="${url}" controls autoplay></video>`;
-  document.querySelector('.dialog')?.classList.add('dialog-wide');
-  document.getElementById('backdrop').classList.add('open');
+  chillAudio.pause();
+  if (vidUrl) URL.revokeObjectURL(vidUrl);
+  vidUrl = URL.createObjectURL(blob);
+  vpV.src = vidUrl; vpV.playbackRate = 1; $c('vpSpeed').textContent = '1×';
+  $c('vpTitle').textContent = m.title;
+  $c('vidPlayer').hidden = false;
+  vpV.play().catch(() => {}); vpShowUi();
 }
+function closeVideo() {
+  vpV.pause(); vpV.removeAttribute('src'); vpV.load();
+  if (vidUrl) { URL.revokeObjectURL(vidUrl); vidUrl = null; }
+  if (document.fullscreenElement) document.exitFullscreen?.();
+  $c('vidPlayer').hidden = true;
+}
+const vpSkip = (s) => { vpV.currentTime = Math.max(0, Math.min(vpV.duration || 0, vpV.currentTime + s)); vpShowUi(); };
+$c('vpClose')?.addEventListener('click', closeVideo);
+$c('vpPlay')?.addEventListener('click', () => { if (vpV.paused) vpV.play(); else vpV.pause(); vpShowUi(); });
+$c('vpBack')?.addEventListener('click', () => vpSkip(-10));
+$c('vpFwd')?.addEventListener('click', () => vpSkip(10));
+$c('vpSpeed')?.addEventListener('click', () => {
+  const sp = [1, 1.25, 1.5, 2, 0.75]; const n = sp[(sp.indexOf(vpV.playbackRate) + 1) % sp.length];
+  vpV.playbackRate = n; $c('vpSpeed').textContent = n + '×'; vpShowUi();
+});
+$c('vpFs')?.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen?.(); else $c('vidPlayer').requestFullscreen?.(); });
+vpV?.addEventListener('play', () => { $c('vpPlay').textContent = '⏸'; vpShowUi(); });
+vpV?.addEventListener('pause', () => { $c('vpPlay').textContent = '▶'; vpShowUi(); });
+vpV?.addEventListener('timeupdate', () => {
+  const d = vpV.duration || 0;
+  if (!vpSeeking) $c('vpSeek').value = d ? (vpV.currentTime / d) * 1000 : 0;
+  $c('vpCur').textContent = fmtT(vpV.currentTime); $c('vpDur').textContent = fmtT(d);
+});
+$c('vpSeek')?.addEventListener('input', () => { vpSeeking = true; });
+$c('vpSeek')?.addEventListener('change', () => { if (vpV.duration) vpV.currentTime = ($c('vpSeek').value / 1000) * vpV.duration; vpSeeking = false; vpShowUi(); });
+// tap video = show/hide controls, double-tap left/right = seek 10s
+vpV?.addEventListener('click', (e) => {
+  const now = Date.now();
+  if (now - vpLastTap < 300) { const r = vpV.getBoundingClientRect(); vpSkip(e.clientX < r.left + r.width / 2 ? -10 : 10); vpLastTap = 0; return; }
+  vpLastTap = now;
+  if ($c('vpUi').classList.contains('off')) vpShowUi(); else { clearTimeout(vpHide); $c('vpUi').classList.add('off'); }
+});
 
 /* ---- Read: Manga + Stories ---- */
 let readMode = 'manga';
@@ -2201,28 +2343,41 @@ function drawManga() {
     <div class="chill-tile" data-manga="${m.id}">
       <div class="chill-tile-icon">📖</div>
       <div class="chill-tile-title">${esc(m.title)}</div>
-      <div class="chill-tile-sub">${(m.pages?.length||0)} page${(m.pages?.length||0)===1?'':'s'}</div>
+      <div class="chill-tile-sub">${mangaSub(m)}</div>
     </div>`).join('') : '<div class="empty">No manga imported yet — go to Import</div>';
-  el.querySelectorAll('[data-manga]').forEach(tile => {
-    tile.addEventListener('click', () => openManga(tile.dataset.manga));
-  });
+  el.querySelectorAll('[data-manga]').forEach(tile => tile.addEventListener('click', () => openManga(tile.dataset.manga)));
 }
-async function openManga(mid) {
+async function openManga(mid, chIdx) {
   const m = store.chillMedia.find(x => x.id === mid);
   if (!m) return;
-  const pages = [...(m.pages || [])].sort((a,b) => a.order - b.order);
-  const imgs = [];
-  for (const p of pages) {
-    const blob = await chillGetBlob(p.id);
-    if (!blob) continue;
-    imgs.push(trackChillUrl(URL.createObjectURL(blob)));
-  }
+  const chs = mangaChapters(m);
+  const body = document.getElementById('dlgBody');
   document.getElementById('dlgTitle').textContent = m.title;
-  document.getElementById('dlgBody').innerHTML = imgs.length
-    ? `<div class="manga-reader">${imgs.map(u => `<img src="${u}" loading="lazy">`).join('')}</div>`
-    : '<div class="empty">No pages</div>';
   document.querySelector('.dialog')?.classList.add('dialog-wide');
   document.getElementById('backdrop').classList.add('open');
+  if (chIdx == null) {
+    body.innerHTML = chs.length ? chs.map((c, i) => `
+      <div class="chill-row" data-ch="${i}"><div class="chill-row-main"><div class="chill-row-title">${esc(c.name)}</div>
+      <div class="chill-row-sub">${(c.pages||[]).length} page${(c.pages||[]).length===1?'':'s'}</div></div><span class="chill-row-icon">▶</span></div>`).join('')
+      : '<div class="empty">No chapters</div>';
+    body.querySelectorAll('[data-ch]').forEach(r => r.addEventListener('click', () => openManga(mid, Number(r.dataset.ch))));
+    return;
+  }
+  revokeChillUrls();
+  const ch = chs[chIdx];
+  const imgs = [];
+  for (const p of [...(ch.pages || [])].sort((a, b) => a.order - b.order)) {
+    const blob = await chillGetBlob(p.id);
+    if (blob) imgs.push(trackChillUrl(URL.createObjectURL(blob)));
+  }
+  const nav = `<div class="mg-nav">
+      <button type="button" class="btn btn-ghost" ${chIdx>0?`data-go="${chIdx-1}"`:'disabled'}>‹ Prev</button>
+      <button type="button" class="btn btn-ghost" data-go="list">☰ ${esc(ch.name)}</button>
+      <button type="button" class="btn btn-ghost" ${chIdx<chs.length-1?`data-go="${chIdx+1}"`:'disabled'}>Next ›</button></div>`;
+  body.innerHTML = nav + (imgs.length ? `<div class="manga-reader">${imgs.map(u => `<img src="${u}" loading="lazy">`).join('')}</div>` : '<div class="empty">No pages</div>') + nav;
+  body.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
+    openManga(mid, b.dataset.go === 'list' ? null : Number(b.dataset.go)); body.scrollTop = 0; document.querySelector('.dialog')?.scrollTo?.(0, 0);
+  }));
 }
 
 function drawStories() {
