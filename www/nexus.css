@@ -1514,26 +1514,6 @@ a { color: inherit; text-decoration: none; }
 .mini-player-info { cursor: pointer; }
 .mp-prog { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: var(--gold); border-radius: 3px; }
 
-/* ---------- Now Playing (full-screen) ---------- */
-.np { position: fixed; inset: 0; z-index: 9000; background: var(--ink); color: var(--snow); display: flex; flex-direction: column; padding: 14px 20px calc(24px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
-.np[hidden], .vp[hidden] { display: none; }
-.np-top { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--mist); }
-.np-top .btn-icon { font-size: 22px; }
-.np-tabs { display: flex; gap: 8px; justify-content: center; margin: 10px 0 14px; }
-.np-art { width: min(72vw, 320px); aspect-ratio: 1; margin: 6px auto 22px; border-radius: 22px; background: linear-gradient(135deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 84px; color: var(--gold); }
-.np-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 18px; word-break: break-word; }
-.np-seek, #vpSeek { width: 100%; accent-color: var(--gold); }
-.np-times { display: flex; justify-content: space-between; font-size: 12px; color: var(--mist); margin-top: 2px; }
-.np-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; }
-.np-controls button { background: none; border: 0; color: var(--snow); font-size: 26px; padding: 10px; opacity: 0.55; }
-.np-controls button.on { opacity: 1; color: var(--gold); }
-.np-controls .np-play { width: 66px; height: 66px; border-radius: 50%; background: var(--gold); color: var(--ink); opacity: 1; font-size: 26px; }
-.np-lyr-body { white-space: pre-wrap; font-size: 17px; line-height: 1.75; text-align: center; padding: 8px 4px 20px; }
-.np-lyr-body.empty { color: var(--mist); font-size: 14px; }
-.np-lyr-text { width: 100%; min-height: 48vh; background: var(--panel); color: var(--snow); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: inherit; line-height: 1.6; resize: none; }
-.np-lyr-actions { display: flex; gap: 10px; margin-top: 12px; }
-#npLyricsView { display: flex; flex-direction: column; align-items: center; }
-
 /* ---------- Video player ---------- */
 .vp { position: fixed; inset: 0; z-index: 9100; background: #000; }
 .vp video { width: 100%; height: 100%; object-fit: contain; background: #000; }
@@ -1602,3 +1582,80 @@ a { color: inherit; text-decoration: none; }
 #toast.err { border-color: var(--coral); }
 #toast.ok { border-color: var(--mint); }
 .mg-miss { color: #777; padding: 40px 10px; text-align: center; font-size: 13px; }
+
+/* ---------- Manga: + button, add sheet, series page ---------- */
+.manga-import { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.mg-plus { display: flex; align-items: center; gap: 14px; background: none; border: 0; color: var(--snow); font: inherit; font-size: 15px; font-weight: 600; padding: 2px 0; }
+.mg-plus span { width: 56px; height: 56px; border-radius: 50%; background: var(--gold); color: var(--ink); font-size: 30px; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+.mg-sheet-back { position: fixed; inset: 0; z-index: 9500; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; }
+.mg-sheet-back[hidden], .mg-series[hidden] { display: none; }
+.mg-sheet { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px 20px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; max-height: 85vh; overflow-y: auto; }
+.mg-sh-title { font-weight: 700; font-size: 16px; }
+.mg-opt { text-align: left; background: var(--panel-2); border: 1px solid var(--line); color: var(--snow); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 3px; font: inherit; }
+.mg-opt small { color: var(--mist); font-size: 12px; }
+.mg-opt:disabled { opacity: 0.45; }
+.mg-input { width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--snow); border-radius: 10px; padding: 12px; font: inherit; }
+.mg-series { position: fixed; inset: 0; z-index: 9300; background: var(--ink); color: var(--snow); display: flex; flex-direction: column; }
+.mg-sbar { display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; border-bottom: 1px solid var(--line); }
+.mg-sbar .btn-icon { font-size: 22px; }
+.mg-sbar .mg-tt { flex: 1; min-width: 0; }
+.mg-sbody { padding: 14px 16px 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.chill-row[data-mid] { cursor: pointer; }
+
+/* ---------- Now Playing (queue · art · lyrics) ---------- */
+#vpSeek { width: 100%; accent-color: var(--gold); }
+.np[hidden], .vp[hidden] { display: none; }
+.np { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column; background: #fff; color: #fff; overflow: hidden; }
+.np-top-area { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: #3d4435; }
+.np-bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(38px) saturate(1.1); transform: scale(1.15); }
+.np-top-area::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.16), rgba(0,0,0,0.38) 78%), rgba(20,24,16,0.32); pointer-events: none; }
+.np-head, .np-pager, .np-foot { position: relative; z-index: 2; }
+.np-head { display: flex; align-items: flex-start; gap: 4px; padding: calc(16px + env(safe-area-inset-top, 0px)) 10px 8px 22px; }
+.np-ht { flex: 1; min-width: 0; }
+.np-title { font-size: 20px; line-height: 1.25; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-artist { font-size: 15px; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.np-ic { background: none; border: 0; color: #fff; padding: 10px; display: flex; align-items: center; }
+.np-pager { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.np-pager::-webkit-scrollbar { display: none; }
+.np-page { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; height: 100%; overflow: hidden; position: relative; }
+.np-pg-art { display: flex; align-items: center; justify-content: center; }
+.np-art { width: min(88vw, 60vh); aspect-ratio: 1; border-radius: 50%; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 96px; color: rgba(255,255,255,0.85); box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+.np-queue { position: relative; height: 100%; overflow-y: auto; padding: 4px 0 12px; }
+.np-q { display: flex; align-items: center; gap: 6px; padding: 10px 4px 10px 22px; }
+.np-q-main { flex: 1; min-width: 0; }
+.np-q-t { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-q-a { font-size: 14px; opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; margin-right: 4px; }
+.eq i { width: 3px; height: 6px; border-radius: 1px; background: #fff; animation: npEq 0.9s infinite ease-in-out; }
+.eq i:nth-child(2) { animation-delay: 0.2s; } .eq i:nth-child(3) { animation-delay: 0.4s; }
+.eq.paused i { animation: none; }
+@keyframes npEq { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+.np-lyr-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 36px 24px 60px; text-align: center; }
+.np-lyr-scroll[hidden], .np-lyr-edit[hidden] { display: none; }
+.np-lyr-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; opacity: 0.85; pointer-events: none; }
+.ly { font-size: 19px; line-height: 1.7; opacity: 0.55; transition: opacity 0.2s, transform 0.2s; }
+.ly.plain { opacity: 1; }
+.ly.cur { opacity: 1; font-weight: 600; transform: scale(1.04); }
+#npLyricsView:has(.np-lyr-empty) { position: static; }
+.np-lyr-btn { margin-top: 22px; color: #fff; border-color: rgba(255,255,255,0.4); position: relative; z-index: 3; }
+#npLyricsView:has(.np-lyr-empty) .np-lyr-btn { position: absolute; left: 50%; bottom: 28%; transform: translateX(-50%); }
+.np-lyr-edit { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 8px 18px 12px; }
+.np-lyr-edit textarea { flex: 1; background: rgba(0,0,0,0.38); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 12px; padding: 12px; font: inherit; line-height: 1.6; resize: none; }
+.np-lyr-actions { display: flex; gap: 10px; }
+.np-foot { display: flex; align-items: center; justify-content: space-between; padding: 4px 16px 14px; }
+.np-foot button { background: none; border: 0; color: #fff; padding: 8px; display: flex; }
+.np-dots { display: flex; gap: 16px; }
+.np-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.45); }
+.np-dots i.on { background: #fff; }
+.np-ctrl { background: #fff; color: #444; padding: 14px 22px calc(28px + env(safe-area-inset-bottom, 0px)); }
+.np-btns { display: flex; align-items: center; justify-content: space-between; padding: 6px 36px 26px; }
+.np-btns button { background: none; border: 0; color: #444; padding: 8px; display: flex; align-items: center; }
+.np-seekrow { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #777; }
+.np-seek { flex: 1; -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; outline: 0; background: linear-gradient(to right, #f44336 var(--p, 0%), #d9d9d9 var(--p, 0%)); }
+.np-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #f44336; border: 0; }
+.np-seek::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #f44336; border: 0; }
+
+.np-title { font-size: 16px; }
+.np-artist { font-size: 13px; }
+.np-q-t { font-size: 17px; }
+.np-btns { padding: 6px 14px 26px; }

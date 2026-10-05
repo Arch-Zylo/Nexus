@@ -471,7 +471,7 @@
           </div>
           <div class="set-row set-row-static">
             <span class="set-label">Version</span>
-            <span class="set-value">1.3.9</span>
+            <span class="set-value">1.2.0</span>
           </div>
           <div class="set-row set-row-static">
             <span class="set-label">Storage</span>
@@ -639,16 +639,15 @@
           <div id="importVideoList" class="chill-list"></div>
         </div>
         <div id="importMangaMode" hidden>
-          <div class="manga-form">
-            <input id="mgPath" list="mgTitles" placeholder="manga_title/chapter 1" autocomplete="off"><datalist id="mgTitles"></datalist>
-            <label class="btn btn-gold import-picker">+ Add images / .cbz / .zip<input type="file" id="importMangaFile" accept="image/*,.cbz,.zip" multiple hidden></label>
-            <label class="btn btn-ghost import-picker">Import folder<input type="file" id="importMangaFolder" webkitdirectory multiple hidden></label>
+          <div class="manga-import">
+            <button type="button" class="mg-plus" id="mgPlus" title="Add a series or a chapter"><span>＋</span>Add series or chapter</button>
             <div class="mg-hint" id="mgStatus"></div>
-            <p class="mg-hint">Type <b>manga_title/chapter 1</b>, then select all panels at once (ordered by file name). <b>Import folder</b>: a series folder with one sub-folder per chapter, or a folder of series — chapters are detected automatically. Each <b>.cbz/.zip</b> becomes a chapter.</p>
+            <input type="file" id="importMangaFile" accept="image/*,.cbz,.zip" multiple hidden>
+            <input type="file" id="importMangaFolder" webkitdirectory multiple hidden>
           </div>
           <div id="importMangaList" class="chill-list"></div>
         </div>
-        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device only — they are not included in Settings → Backup export.</p>
+        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device. Settings → Export packs them into a .nexusbackup file so you can restore them later.</p>
       </section>
 
     </div>
@@ -666,27 +665,29 @@
   </div>
 </div>
 <div class="np" id="nowPlaying" hidden>
-  <div class="np-top"><button type="button" class="btn-icon" id="npClose" title="Close">⌄</button><span>Now Playing</span><span></span></div>
-  <div class="np-tabs"><button type="button" class="tt-mode on" data-np-tab="player">Player</button><button type="button" class="tt-mode" data-np-tab="lyrics">Lyrics</button></div>
-  <div id="npPlayer">
-    <div class="np-art" id="npArt">♪</div>
-    <div class="np-title" id="npTitle">—</div>
-    <input type="range" id="npSeek" class="np-seek" min="0" max="1000" value="0">
-    <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
-    <div class="np-controls">
-      <button type="button" id="npShuffle" title="Shuffle">⇄</button>
-      <button type="button" id="npPrev" title="Previous">⏮</button>
-      <button type="button" id="npPlay" class="np-play" title="Play/Pause">▶</button>
-      <button type="button" id="npNext" title="Next">⏭</button>
-      <button type="button" id="npRepeat" title="Repeat">↻</button>
+  <div class="np-top-area">
+    <div class="np-bg" id="npBg"></div><div class="np-shade"></div>
+    <div class="np-head">
+      <div class="np-ht"><div class="np-title" id="npTitle">—</div><div class="np-artist" id="npArtist"></div></div>
+      <button type="button" class="np-ic" id="npShare" title="Share"></button>
+      <button type="button" class="np-ic" id="npMore" title="More"></button>
     </div>
+    <div class="np-pager" id="npPager">
+      <div class="np-page"><div class="np-queue" id="npQueue"></div></div>
+      <div class="np-page np-pg-art"><div class="np-art" id="npArt">♪</div></div>
+      <div class="np-page">
+        <div class="np-lyr-scroll" id="npLyrScroll"><div id="npLyricsView"><div id="npLyricsBody"></div><button type="button" class="btn btn-ghost np-lyr-btn" id="npLyricsEditBtn">Add lyrics</button></div></div>
+        <div class="np-lyr-edit" id="npLyricsEdit" hidden>
+          <textarea id="npLyricsText" placeholder="Paste or type lyrics here…&#10;Tip: lines like [01:23.45] text will highlight in time with the song."></textarea>
+          <div class="np-lyr-actions"><button type="button" class="btn btn-gold" id="npLyricsSave">Save</button><button type="button" class="btn btn-ghost" id="npLyricsCancel">Cancel</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="np-foot"><button type="button" id="npFav" title="Favourite"></button><div class="np-dots" id="npDots"><i></i><i class="on"></i><i></i></div><button type="button" id="npShuffle" title="Shuffle"></button></div>
   </div>
-  <div id="npLyrics" hidden>
-    <div id="npLyricsView"><div class="np-lyr-body" id="npLyricsBody"></div><button type="button" class="btn btn-gold" id="npLyricsEditBtn">Add lyrics</button></div>
-    <div id="npLyricsEdit" hidden>
-      <textarea id="npLyricsText" class="np-lyr-text" placeholder="Paste or type lyrics here…"></textarea>
-      <div class="np-lyr-actions"><button type="button" class="btn btn-gold" id="npLyricsSave">Save</button><button type="button" class="btn btn-ghost" id="npLyricsCancel">Cancel</button></div>
-    </div>
+  <div class="np-ctrl">
+    <div class="np-btns"><button type="button" id="npPrev" title="Previous"></button><button type="button" id="npPlay" title="Play/Pause"></button><button type="button" id="npNext" title="Next"></button></div>
+    <div class="np-seekrow"><span id="npCur">0:00</span><input type="range" id="npSeek" class="np-seek" min="0" max="1000" value="0"><span id="npDur">0:00</span></div>
   </div>
 </div>
 <div class="mg-reader" id="mgReader" hidden>
@@ -695,6 +696,11 @@
   <div class="mg-bar mg-bot"><button type="button" id="mgPrevCh">‹ Ch</button><span id="mgPg">0 / 0</span><button type="button" id="mgNextCh">Ch ›</button></div>
   <div class="mg-chapters" id="mgChapters" hidden></div>
 </div>
+<div class="mg-series" id="mgSeries" hidden>
+  <div class="mg-sbar"><button type="button" class="btn-icon" id="mgSeriesBack" title="Back">‹</button><div class="mg-tt"><div id="mgSeriesTitle"></div><small id="mgSeriesSub"></small></div><button type="button" class="btn-icon" id="mgSeriesDel" title="Delete series">🗑</button></div>
+  <div class="mg-sbody"><button type="button" class="btn btn-gold" id="mgAddCh">＋ Add chapter</button><div id="mgSeriesList" class="chill-list"></div></div>
+</div>
+<div class="mg-sheet-back" id="mgSheetBack" hidden><div class="mg-sheet" id="mgSheet"></div></div>
 <div class="vp" id="vidPlayer" hidden>
   <video id="vpVideo" playsinline></video>
   <div class="vp-ui" id="vpUi">
