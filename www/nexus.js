@@ -208,7 +208,53 @@ function load() {
     mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
   };
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(store)); }
+const APP_VERSION = '1.3.9';
+let toastTimer = null;
+function toast(msg, kind, ms) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = String(msg); t.className = 'show ' + (kind || '');
+  clearTimeout(toastTimer);
+  if (ms !== 0) toastTimer = setTimeout(() => t.classList.remove('show'), ms || 3200);
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(store)); return true; }
+  catch (e) {
+    console.error('Nexus: save failed', e);
+    toast('Storage is full — your latest changes could not be saved. Export a backup and free some space.', 'err', 7000);
+    return false;
+  }
+}
+function defaultStore() {
+  return {
+    classes: [], events: [], tasks: [], people: [], notes: [],
+    accounts: [], loans: [], passwords: [], log: [],
+    theme: 'night', style: 'soft',
+    name: '', school: '', currency: '$', timefmt: '12', notify: false,
+    classNotify: false, classNotifyLead: 10,
+    customCats: [], spendPeriod: 'all', spendResetTs: 0,
+    mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
+  };
+}
+/* Validate + migrate a backup BEFORE it is allowed to replace the live store. Returns null if unusable. */
+function normalizeStore(raw) {
+  let o = raw;
+  if (o && typeof o === 'object' && o.backupVersion && o.data) o = o.data;
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+  if (!['classes', 'events', 'tasks', 'people', 'notes', 'accounts', 'chillMedia'].some(k => k in o)) return null;
+  const s = { ...defaultStore(), ...o };
+  ['classes', 'events', 'tasks', 'people', 'notes', 'accounts', 'loans', 'passwords', 'chillMedia', 'chillStories']
+    .forEach(k => { s[k] = Array.isArray(o[k]) ? o[k].filter(x => x && typeof x === 'object') : []; });
+  s.log = Array.isArray(o.log) ? o.log : [];
+  s.customCats = Array.isArray(o.customCats) ? o.customCats : [];
+  s.chillProgress = o.chillProgress && typeof o.chillProgress === 'object' && !Array.isArray(o.chillProgress) ? o.chillProgress : {};
+  s.spendPeriod = ['all', 'week', 'month', 'year'].includes(o.spendPeriod) ? o.spendPeriod : 'all';
+  s.spendResetTs = Number(o.spendResetTs) || 0;
+  s.classNotify = !!o.classNotify;
+  s.classNotifyLead = Number(o.classNotifyLead) || 10;
+  s.mode = o.mode === 'chill' ? 'chill' : 'regular';
+  return s;
+}
 function id() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 function today() {
@@ -427,7 +473,93 @@ document.getElementById('themeBtnChill')?.addEventListener('click', nextTheme);
 document.querySelectorAll('[data-mode-toggle]').forEach(b => b.addEventListener('click', () => setAppMode(store.mode === 'chill' ? 'regular' : 'chill')));
 
 /* Wipe data — 3 different confirmations */
-function wipeAllData() {
+async function chillClearAll() {
+  const db = await chillDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---- .nexusbackup = ZIP (stored, no compression): manifest.json + data.json + media/<key> ---- */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+async function crcBlob(blob) {
+  let c = 0xFFFFFFFF; const CH = 4 * 1024 * 1024;
+  for (let o = 0; o < blob.size; o += CH) { const u = new Uint8Array(await blob.slice(o, o + CH).arrayBuffer()); for (let i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 255] ^ (c >>> 8); }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function buildZip(entries, onProg) {
+  const enc = new TextEncoder(), parts = [], cd = []; let off = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i], nameB = enc.encode(e.name), size = e.blob.size;
+    if (size > 0xFFFFFFF0 || off > 0xFFFFFFF0) throw new Error('This backup is over 4 GB — too large for one file. Remove some media and try again.');
+    const crc = await crcBlob(e.blob);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, nameB.length, true);
+    parts.push(lh.buffer, nameB, e.blob);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, nameB.length, true); ch.setUint32(42, off, true);
+    cd.push(ch.buffer, nameB);
+    off += 30 + nameB.length + size;
+    onProg?.(i + 1, entries.length);
+  }
+  const cdSize = cd.reduce((n, b) => n + b.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...cd, end.buffer], { type: 'application/zip' });
+}
+async function buildNexusBackup(json, say) {
+  const keys = [];
+  for (const m of store.chillMedia) { if (m.type === 'manga') mangaAllPages(m).forEach(p => keys.push(p.id)); else keys.push(m.id); }
+  const entries = [], files = []; let missing = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const b = await chillGetBlob(keys[i]).catch(() => null);
+    if (!b) { missing++; continue; }
+    entries.push({ name: 'media/' + encodeURIComponent(keys[i]), blob: b }); files.push({ key: keys[i], type: b.type || '' });
+    if (i % 10 === 0) say?.(`Reading media… ${i + 1}/${keys.length}`);
+  }
+  const manifest = { format: 'nexusbackup', backupVersion: 2, appVersion: APP_VERSION, createdAt: new Date().toISOString(), files, missing };
+  entries.unshift({ name: 'manifest.json', blob: new Blob([JSON.stringify(manifest)]) }, { name: 'data.json', blob: new Blob([json]) });
+  const zip = await buildZip(entries, (i, n) => { if (i % 10 === 0) say?.(`Packing backup… ${i}/${n}`); });
+  if (missing) toast(`${missing} media file${missing === 1 ? ' was' : 's were'} missing on this device and not included.`, 'err', 6000);
+  return zip;
+}
+async function restoreNexusBackup(file, say) {
+  const zip = await ZipArchive.open(file), all = Array.from(zip.entries);
+  const ent = (n) => all.find(x => x.name === n);
+  const de = ent('data.json'); if (!de) throw new Error('no data.json');
+  const ns = normalizeStore(JSON.parse(await (await de.read()).text()));
+  if (!ns) { say('This backup is invalid or from an unsupported version. Nothing was changed.', 'var(--coral)'); return; }
+  const types = {}, me = ent('manifest.json');
+  if (me) { try { (JSON.parse(await (await me.read()).text()).files || []).forEach(x => { types[x.key] = x.type; }); } catch {} }
+  await chillClearAll().catch(() => {});
+  const media = all.filter(x => x.name.startsWith('media/'));
+  let n = 0, bad = 0;
+  for (const e of media) {
+    try { const key = decodeURIComponent(e.name.slice(6)); await chillPut(key, await e.read(types[key] || '')); n++; } catch { bad++; }
+    if ((n + bad) % 5 === 0) say(`Restoring media… ${n + bad}/${media.length}`);
+  }
+  thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls.clear(); thumbBad.clear();
+  store = ns; save(); applyTheme(store.theme || 'night'); applyMode(store.mode); boot();
+  say(bad ? `Restored, but ${bad} media file${bad === 1 ? '' : 's'} could not be written (storage may be full).` : `Restored everything, including ${n} media file${n === 1 ? '' : 's'}.`, bad ? 'var(--coral)' : 'var(--mint)');
+}
+async function writeBlobNative(FS, filename, blob) {
+  const CH = 3 * 1024 * 1024; let uri = null;
+  const b64 = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+  for (let o = 0; o < blob.size; o += CH) {
+    const data = await b64(blob.slice(o, o + CH));
+    if (o === 0) uri = (await FS.writeFile({ path: filename, data, directory: 'CACHE' })).uri;
+    else await FS.appendFile({ path: filename, data, directory: 'CACHE' });
+  }
+  return { uri };
+}
+
+async function wipeAllData() {
   if (!confirm('1/3 — Delete ALL data?\n\nClasses, events, tasks, people, notes, wallet, passwords — everything.')) return;
   if (!confirm('2/3 — This cannot be undone.\n\nHave you exported a backup?\nPress OK only if you are sure.')) return;
   const typed = prompt('3/3 — Type WIPE (all caps) to permanently erase everything:');
@@ -436,15 +568,11 @@ function wipeAllData() {
     if (msg) { msg.textContent = 'Wipe cancelled.'; msg.style.color = 'var(--fog)'; }
     return;
   }
-  localStorage.removeItem(KEY);
-  store = {
-    classes: [], events: [], tasks: [], people: [], notes: [],
-    accounts: [], loans: [], passwords: [], log: [],
-    theme: 'night', style: 'soft',
-    name: '', school: '', currency: '$', timefmt: '12', notify: false,
-    classNotify: false, classNotifyLead: 10,
-    customCats: [], spendPeriod: 'all', spendResetTs: 0
-  };
+  try { [KEY, BACKUP_KEY, BACKUP_KEY + '-ts', 'nexus_mg_mode'].forEach(k => localStorage.removeItem(k)); } catch {}
+  try { await chillClearAll(); } catch {}
+  try { chillAudio.pause(); chillAudio.removeAttribute('src'); document.getElementById('miniPlayer').hidden = true; } catch {}
+  thumbUrls.forEach(u => URL.revokeObjectURL(u)); thumbUrls.clear(); thumbBad.clear();
+  store = defaultStore();
   save();
   applyTheme('night');
   applyStyle('soft');
@@ -452,14 +580,14 @@ function wipeAllData() {
   hidePassPanel();
   refreshSettingsUI();
   const msg = document.getElementById('dataMsg');
-  if (msg) { msg.textContent = 'All data wiped.'; msg.style.color = 'var(--coral)'; }
+  if (msg) { msg.textContent = 'All data wiped — including media files and the on-device backup.'; msg.style.color = 'var(--coral)'; }
 }
 
 async function doExport() {
-  const json = JSON.stringify(store, null, 2);
+  const json = JSON.stringify({ backupVersion: 2, appVersion: APP_VERSION, createdAt: new Date().toISOString(), data: store }, null, 2);
   const msg = document.getElementById('dataMsg');
   const stamp = today(); // YYYY-MM-DD
-  const filename = `nexus-backup-${stamp}.json`;
+  let filename = `nexus-backup-${stamp}.json`;
 
   // Always keep an on-device fallback copy too (used by "Restore from your
   // local backup" in the import flow), regardless of how the file export
@@ -469,6 +597,13 @@ async function doExport() {
     localStorage.setItem(BACKUP_KEY + '-ts', String(Date.now()));
   } catch {}
 
+  // Full backup (.nexusbackup) when there is Chill media; plain JSON otherwise.
+  let fileBlob = null;
+  if (store.chillMedia.length) {
+    const say = (t) => { if (msg) { msg.textContent = t; msg.style.color = 'var(--fog)'; } };
+    try { fileBlob = await buildNexusBackup(json, say); filename = `nexus-backup-${stamp}.nexusbackup`; }
+    catch (e) { console.warn(e); toast((e && e.message) || 'Could not pack media.', 'err', 6000); fileBlob = null; if (!confirm('Media could not be packed. Export data only (no music, videos or manga)?')) return; }
+  }
   if (isNativeApp()) {
     // On Android there is no plain browser "Save As" dialog inside a
     // WebView, so we write the backup to the app's cache and hand it to
@@ -481,7 +616,7 @@ async function doExport() {
       return;
     }
     try {
-      const written = await FS.writeFile({ path: filename, data: json, directory: 'CACHE', encoding: 'utf8' });
+      const written = fileBlob ? await writeBlobNative(FS, filename, fileBlob) : await FS.writeFile({ path: filename, data: json, directory: 'CACHE', encoding: 'utf8' });
       if (ShareP) {
         await ShareP.share({
           title: 'Nexus backup',
@@ -504,7 +639,7 @@ async function doExport() {
     // backup is a visible file the user's browser Save-As / Downloads
     // flow handles, not just an invisible localStorage write.
     try {
-      const blob = new Blob([json], { type: 'application/json' });
+      const blob = fileBlob || new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -559,7 +694,9 @@ function refreshSettingsUI() {
   set('classNotifyLeadValue', (Number(store.classNotifyLead) || 10) + ' min before');
   try {
     const bytes = new Blob([JSON.stringify(store)]).size;
-    set('storageValue', bytes < 1024 ? bytes + ' B' : (bytes / 1024).toFixed(1) + ' KB');
+    const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB';
+    set('storageValue', 'App data ' + fmt(bytes));
+    navigator.storage?.estimate?.().then(e => { if (e && e.usage) set('storageValue', 'App data ' + fmt(bytes) + ' · Total ' + fmt(e.usage)); }).catch(() => {});
   } catch { set('storageValue', '—'); }
 }
 
@@ -570,7 +707,7 @@ function toggleNotify() {
       save();
       refreshSettingsUI();
       if (granted) scheduleDueTaskReminders();
-      else alert('Permission denied — reminders stay off.');
+      else toast('Permission denied — reminders stay off.');
     });
   } else {
     store.notify = false;
@@ -633,7 +770,7 @@ async function scheduleDueTaskReminders() {
     (store.tasks || []).forEach(t => {
       if (t.done || !t.due) return;
       const d = daysOut(t.due);
-      if (d > 1) return; // only remind for overdue / due-today / due-tomorrow
+      if (d > 60) return; // schedule up to 60 days ahead (Android caps pending alarms)
       const due = parseD(t.due);
       due.setHours(9, 0, 0, 0);
       // If the 9am reminder time for that due date has already passed
@@ -641,7 +778,7 @@ async function scheduleDueTaskReminders() {
       const at = due.getTime() > Date.now() ? due : new Date(Date.now() + 3000);
       notifications.push({
         id: taskNotifId(t.id),
-        title: d < 0 ? 'Nexus — task overdue' : d === 0 ? 'Nexus — task due today' : 'Nexus — task due tomorrow',
+        title: d < 0 ? 'Nexus — task overdue' : 'Nexus — task due today',
         body: t.title,
         schedule: { at, allowWhileIdle: true },
         extra: { nexusTask: true, taskId: t.id }
@@ -698,13 +835,13 @@ function classLeadMinutes(c) {
 async function requestNotifyPermission() {
   if (isNativeApp()) {
     const LN = window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
-    if (!LN) { alert('Notifications plugin unavailable.'); return false; }
+    if (!LN) { toast('Notifications plugin unavailable.'); return false; }
     try {
       const res = await LN.requestPermissions();
       return res.display === 'granted';
     } catch { return false; }
   }
-  if (!('Notification' in window)) { alert('Notifications are not supported in this browser.'); return false; }
+  if (!('Notification' in window)) { toast('Notifications are not supported in this browser.'); return false; }
   try {
     const p = await Notification.requestPermission();
     return p === 'granted';
@@ -774,7 +911,7 @@ function toggleClassNotify() {
       save();
       refreshSettingsUI();
       if (granted) scheduleAllClassNotifications();
-      else alert('Permission denied — timetable reminders stay off.');
+      else toast('Permission denied — timetable reminders stay off.');
     });
   } else {
     store.classNotify = false;
@@ -830,7 +967,7 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
   else if (action === 'spendresetnow') {
     if (!confirm('Reset the spending chart now?\n\nYour transactions are kept — the chart just starts fresh from today.')) return;
     store.spendResetTs = Date.now(); save(); drawHome();
-    alert('Spending chart reset.');
+    toast('Spending chart reset.');
   }
   else if (action === 'spendcats') showCategoryManager();
   else if (action === 'notify') toggleNotify();
@@ -848,14 +985,9 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
     if (backup && confirm('Restore from your local backup? (Cancel to pick a file instead)')) {
       const msg = document.getElementById('dataMsg');
       try {
-        store = JSON.parse(backup);
-        store.passwords = store.passwords || [];
-        store.loans = store.loans || [];
-        store.customCats = Array.isArray(store.customCats) ? store.customCats : [];
-        store.spendPeriod = ['all','week','month','year'].includes(store.spendPeriod) ? store.spendPeriod : 'all';
-        store.spendResetTs = Number(store.spendResetTs) || 0;
-        store.classNotify = !!store.classNotify;
-        store.classNotifyLead = Number(store.classNotifyLead) || 10;
+        const ns = normalizeStore(JSON.parse(backup));
+        if (!ns) throw new Error('invalid');
+        store = ns;
         save();
         applyTheme(store.theme || 'night');
         boot();
@@ -2076,7 +2208,8 @@ function drawImportList(type) {
       }
       store.chillMedia = store.chillMedia.filter(x => x.id !== m.id);
       try { await chillDeleteBlob('thumb:' + m.id); } catch {}
-      thumbUrls.delete(m.id); delete (store.chillProgress || {})[m.id];
+      { const tu = thumbUrls.get(m.id); if (tu) URL.revokeObjectURL(tu); thumbUrls.delete(m.id); thumbBad.delete(m.id); }
+      delete (store.chillProgress || {})[m.id];
       save();
       drawImportList(type); drawMusic(); drawWatch();
     });
@@ -2086,14 +2219,21 @@ function drawImportList(type) {
 async function importFiles(fileList, type) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  for (const file of files) {
+  const total = files.reduce((n, f) => n + f.size, 0);
+  if (total > 200 * 1024 * 1024 && !confirm(`Import ${files.length} file${files.length === 1 ? '' : 's'}?\n\nThis will use about ${fileSize(total)} of storage.`)) return;
+  let ok = 0, failed = 0, full = false;
+  for (let i = 0; i < files.length; i++) {
+    toast(`Importing ${i + 1}/${files.length}…`, 'info', 0);
     const mid = id();
-    try { await chillPut(mid, file); } catch { continue; }
-    store.chillMedia.push({ id: mid, type, title: fileTitle(file), size: file.size, mimeType: file.type, dateAdded: Date.now() });
+    try { await chillPut(mid, files[i]); }
+    catch (e) { failed++; if (e && e.name === 'QuotaExceededError') { full = true; failed += files.length - i - 1; break; } continue; }
+    store.chillMedia.push({ id: mid, type, title: fileTitle(files[i]), size: files[i].size, mimeType: files[i].type, dateAdded: Date.now() });
+    ok++;
   }
   save();
   drawImportList(type); drawMusic(); drawWatch();
-  log(`Imported ${files.length} ${type} file${files.length===1?'':'s'}`, COLORS[2]);
+  if (ok) log(`Imported ${ok} ${type} file${ok === 1 ? '' : 's'}`, COLORS[2]);
+  toast(failed ? `Imported ${ok}, ${failed} failed${full ? ' — storage is full' : ''}.` : `Imported ${ok} file${ok === 1 ? '' : 's'}.`, failed ? 'err' : 'ok', 5000);
 }
 document.getElementById('importMusicFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'music'); e.target.value = ''; });
 document.getElementById('importVideoFile')?.addEventListener('change', (e) => { importFiles(e.target.files, 'video'); e.target.value = ''; });
@@ -2111,12 +2251,13 @@ function parseMangaPath(s) {
   return { title: p[0] || '', chapter: p[1] || 'Chapter 1' };
 }
 let mgTick = () => {};
+let mgFailed = 0;
 async function addMangaChapter(title, chapter, files) {
   files = files.filter(f => (f.type || 'image/').startsWith('image/')).sort(natSort);
   const pages = [];
   for (let i = 0; i < files.length; i++) {
     const pid = id();
-    try { await chillPut(pid, files[i]); } catch { continue; }
+    try { await chillPut(pid, files[i]); } catch { mgFailed++; continue; }
     mgTick();
     pages.push({ id: pid, order: i });
   }
@@ -2136,6 +2277,7 @@ async function addMangaChapter(title, chapter, files) {
 function mangaImported(n, title, chapter) {
   save(); drawImportList('manga'); drawManga(); refreshMangaTitles();
   log(`Imported ${n} panel${n===1?'':'s'} · ${title} / ${chapter}`, COLORS[2]);
+  toast(`Imported ${n} panel${n===1?'':'s'}.`, 'ok');
 }
 /* ---- ZIP reader (.cbz/.zip), from the manga app ---- */
 class ZipEntry {
@@ -2269,12 +2411,15 @@ async function archiveGroups(file) {
   return out;
 }
 async function runMangaGroups(groups) {
-  mgTotal = groups.reduce((n, g) => n + g.files.length, 0); mgDone = 0;
+  mgTotal = groups.reduce((n, g) => n + g.files.length, 0); mgDone = 0; mgFailed = 0;
+  const bytes = groups.reduce((n, g) => n + g.files.reduce((a, f) => a + f.size, 0), 0);
+  if (bytes > 200 * 1024 * 1024 && !confirm(`Import ${mgTotal} pages?\n\nThis will use about ${fileSize(bytes)} of storage.`)) { mgStatus(''); return; }
   let pages = 0, last = null;
   for (const g of groups) { pages += await addMangaChapter(g.title, g.chapter, g.files); last = g; }
   mgStatus('');
   if (pages) mangaImported(pages, last.title, groups.length > 1 ? groups.length + ' chapters' : last.chapter);
-  else alert('No readable images found.');
+  if (mgFailed) toast(`${mgFailed} page${mgFailed === 1 ? '' : 's'} could not be saved — storage may be full.`, 'err', 6000);
+  else toast('No readable images found.');
 }
 document.getElementById('importMangaFile')?.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []); e.target.value = '';
@@ -2288,7 +2433,7 @@ document.getElementById('importMangaFile')?.addEventListener('change', async (e)
   if (imgs.length) groups.push({ title, chapter, files: imgs });
   try {
     for (const f of files.filter(f => isArc(f.name))) for (const a of await archiveGroups(f)) groups.push({ title, chapter: a.chapter, files: a.files });
-  } catch (err) { alert(err.message); }
+  } catch (err) { toast(err.message); }
   if (groups.length) await runMangaGroups(groups);
 });
 document.getElementById('importMangaFolder')?.addEventListener('change', async (e) => {
@@ -2309,9 +2454,9 @@ document.getElementById('importMangaFolder')?.addEventListener('change', async (
         else add(root, rel.length > 1 ? rel.slice(0, -1).join(' – ') : 'Chapter 1', [f]);
       }
     }
-  } catch (err) { alert(err.message); }
+  } catch (err) { toast(err.message); }
   if (map.size) await runMangaGroups([...map.values()]);
-  else alert('No images or .cbz files found in that folder.');
+  else toast('No images or .cbz files found in that folder.');
 });
 
 /* ---- Thumbnails (music art, video frame, manga cover) ---- */
@@ -2423,7 +2568,7 @@ function drawMusic() {
       <div class="thumb sq" data-thumb="${m.id}" style="${artStyle(m.title)}"><span>♪</span></div>
       <div class="chill-row-main">
         <div class="chill-row-title">${esc(m.title)}</div>
-        <div class="chill-row-sub">${fileSize(m.size)}${m.lyrics ? ' · ♫ lyrics' : ''}</div>
+        <div class="chill-row-sub">${m.missing ? 'File unavailable' : fileSize(m.size)}${m.lyrics ? ' · ♫ lyrics' : ''}</div>
       </div>
       <span class="chill-row-icon">${i===chillQueueIndex && !chillAudio.paused ? '♪' : '▶'}</span>
     </div>`).join('') : '<div class="empty">No music imported yet — go to Import</div>';
@@ -2443,7 +2588,8 @@ async function playChillTrack(i) {
   chillQueueIndex = i;
   const m = chillQueue[i];
   const blob = await chillGetBlob(m.id).catch(() => null);
-  if (!blob) return;
+  if (!blob) { m.missing = true; save(); toast(`“${m.title}” is unavailable — its file is missing (it may not have been restored). Remove it in Import.`, 'err', 5000); drawMusic(); return; }
+  if (m.missing) { delete m.missing; save(); }
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   audioUrl = URL.createObjectURL(blob);
   chillAudio.src = audioUrl;
@@ -2496,6 +2642,8 @@ document.querySelectorAll('[data-np-tab]').forEach(b => b.addEventListener('clic
   $c('npLyrics').hidden = b.dataset.npTab !== 'lyrics';
 }));
 
+chillAudio?.addEventListener('error', () => { if (chillAudio.getAttribute('src')) toast('This audio could not be played — the format may be unsupported.', 'err', 5000); });
+
 /* lyrics: add or paste per track */
 function drawLyrics(editing) {
   const m = chillQueue[chillQueueIndex];
@@ -2524,7 +2672,7 @@ function drawWatch() {
     <div class="chill-tile vt" data-watch="${m.id}">
       <div class="thumb wide" data-thumb="${m.id}" style="${artStyle(m.title)}"><span class="play">▶</span><span class="dur">${m.duration ? fmtT(m.duration) : ''}</span></div>
       <div class="chill-tile-title">${esc(m.title)}</div>
-      <div class="chill-tile-sub">${fileSize(m.size)}</div>
+      <div class="chill-tile-sub">${m.missing ? 'File unavailable' : fileSize(m.size)}</div>
     </div>`).join('') : '<div class="empty">No videos imported yet — go to Import</div>';
   el.querySelectorAll('[data-watch]').forEach(tile => tile.addEventListener('click', () => openVideo(tile.dataset.watch)));
   hydrateThumbs(el);
@@ -2538,8 +2686,9 @@ function vpShowUi() {
 async function openVideo(mid) {
   const m = store.chillMedia.find(x => x.id === mid);
   if (!m) return;
-  const blob = await chillGetBlob(mid);
-  if (!blob) return;
+  const blob = await chillGetBlob(mid).catch(() => null);
+  if (!blob) { m.missing = true; save(); toast(`“${m.title}” is unavailable — its file is missing. Remove it in Import.`, 'err', 5000); drawWatch(); return; }
+  if (m.missing) { delete m.missing; save(); }
   chillAudio.pause();
   if (vidUrl) URL.revokeObjectURL(vidUrl);
   vidUrl = URL.createObjectURL(blob);
@@ -2592,6 +2741,7 @@ vpV?.addEventListener('timeupdate', () => {
 });
 $c('vpSeek')?.addEventListener('input', () => { vpSeeking = true; });
 $c('vpSeek')?.addEventListener('change', () => { if (vpV.duration) vpV.currentTime = ($c('vpSeek').value / 1000) * vpV.duration; vpSeeking = false; vpShowUi(); });
+vpV?.addEventListener('error', () => { if (vpV.getAttribute('src')) toast('This video could not be played — the format may be unsupported.', 'err', 5000); });
 // tap video = show/hide controls, double-tap left/right = seek 10s
 vpV?.addEventListener('click', (e) => {
   const now = Date.now();
@@ -2669,14 +2819,25 @@ function buildVertical(tk, start) {
   $c('mgEndNext')?.addEventListener('click', (e) => { e.stopPropagation(); goCh(1); });
   rd.io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) loadWrap(e.target, tk); }), { root: st, rootMargin: '1500px 0px' });
   wraps.forEach(w => rd.io.observe(w));
-  if (start && wraps[start]) requestAnimationFrame(() => { st.scrollTop = wraps[start].offsetTop; });
+  if (start && wraps[start]) (async () => {
+    await loadWrap(wraps[start], tk);
+    try { await wraps[start].querySelector('img')?.decode(); } catch {}
+    if (rd && tk === rd.token) wraps[start].scrollIntoView({ block: 'start' });
+  })();
 }
-async function loadWrap(w, tk) {
-  if (w.dataset.l) return; w.dataset.l = 1;
-  const blob = await chillGetBlob(rd.pages[w.dataset.i].id).catch(() => null);
-  if (!blob || tk !== rd.token) return;
-  const u = URL.createObjectURL(blob); rd.urls.push(u);
-  const img = new Image(); img.src = u; img.onload = () => w.classList.add('ok'); w.appendChild(img);
+function loadWrap(w, tk) {
+  if (w._p) return w._p;
+  w._p = (async () => {
+    w.dataset.l = 1;
+    const pg = rd && rd.pages[w.dataset.i];
+    if (!pg || tk !== rd.token) return;
+    const blob = await chillGetBlob(pg.id).catch(() => null);
+    if (!rd || tk !== rd.token) return;
+    if (!blob) { w.classList.add('ok'); w.innerHTML = '<div class="mg-miss">Page unavailable</div>'; return; }
+    const u = URL.createObjectURL(blob); rd.urls.push(u);
+    const img = new Image(); img.src = u; img.onload = () => w.classList.add('ok'); w.appendChild(img);
+  })();
+  return w._p;
 }
 async function showPage(i) {
   if (!rd.pages.length) return;
@@ -2835,32 +2996,22 @@ document.getElementById('dlgClose').onclick = closeDialog;
 document.getElementById('backdrop').onclick = e => { if (e.target.id === 'backdrop') closeDialog(); };
 
 /* ---------- DATA ---------- */
-document.getElementById('importFile').onchange = e => {
-  const f = e.target.files[0];
+document.getElementById('importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
-  const r = new FileReader();
-  r.onload = () => {
-    try {
-      store = JSON.parse(r.result);
-      store.passwords = store.passwords || [];
-      store.loans = store.loans || [];
-      store.customCats = Array.isArray(store.customCats) ? store.customCats : [];
-      store.spendPeriod = ['all','week','month','year'].includes(store.spendPeriod) ? store.spendPeriod : 'all';
-      store.spendResetTs = Number(store.spendResetTs) || 0;
-      store.classNotify = !!store.classNotify;
-      store.classNotifyLead = Number(store.classNotifyLead) || 10;
-      save();
-      applyTheme(store.theme || 'night');
-      boot();
-      document.getElementById('dataMsg').textContent = 'Imported successfully.';
-      document.getElementById('dataMsg').style.color = 'var(--mint)';
-    } catch {
-      document.getElementById('dataMsg').textContent = 'Invalid file.';
-      document.getElementById('dataMsg').style.color = 'var(--coral)';
-    }
-  };
-  r.readAsText(f);
-  e.target.value = '';
+  const msg = document.getElementById('dataMsg');
+  const say = (t, c) => { if (msg) { msg.textContent = t; msg.style.color = c || 'var(--fog)'; } };
+  try {
+    const head = new Uint8Array(await f.slice(0, 4).arrayBuffer());
+    if (head[0] === 0x50 && head[1] === 0x4b) { await restoreNexusBackup(f, say); return; }
+    const ns = normalizeStore(JSON.parse(await f.text()));
+    if (!ns) { say('This file is not a valid Nexus backup. Nothing was changed.', 'var(--coral)'); return; }
+    store = ns; save(); applyTheme(store.theme || 'night'); applyMode(store.mode); boot();
+    say('Imported successfully (data only — this file contains no music, videos or manga).', 'var(--mint)');
+  } catch (err) {
+    console.warn('Nexus: import failed', err);
+    say('Could not read that file. Nothing was changed.', 'var(--coral)');
+  }
 };
 
 /* ---------- PASSWORDS ---------- */
@@ -2915,8 +3066,9 @@ document.getElementById('passList')?.addEventListener('click', async (e) => {
       ta.value = p.pass;
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand('copy');
+      const okc = document.execCommand('copy');
       ta.remove();
+      if (!okc) { toast('Could not copy the password.', 'err'); return; }
       copy.textContent = 'Copied';
       setTimeout(() => { copy.textContent = 'Copy'; }, 1200);
     }
