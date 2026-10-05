@@ -1,6 +1,6 @@
 {
   "name": "nexus-student-os",
-  "version": "1.3.9",
+  "version": "1.4.6-beta",
   "private": true,
   "description": "Nexus \u2014 Student OS, packaged as an Android app with Capacitor.",
   "scripts": {

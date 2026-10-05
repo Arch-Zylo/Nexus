@@ -208,17 +208,47 @@ function load() {
     mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
   };
 }
-const APP_VERSION = '1.3.9';
-/* Android back button closes the topmost full-screen layer instead of leaving the app */
+const APP_VERSION = '1.4.6', APP_CHANNEL = 'beta', APP_VERSION_LABEL = 'v1.4.6 (beta)';
+/* Android Back: step back through screens (closing sheets / players first) instead of leaving the app.
+   Every screen change and every full-screen layer adds a history entry; Back removes the newest one. */
 const ovStack = [];
-function ovOpen(closeFn) { ovStack.push(closeFn); try { history.pushState({ nexusOv: ovStack.length }, ''); } catch {} }
-function ovClose(closeFn) {
+let ignorePops = 0, pendingPush = [], ignoreTimer = null;
+let navCur = { go: 'home', mode: 'regular' }, navRestoring = false;
+try { history.replaceState({ nexusNav: navCur }, ''); } catch {}
+function histPush(st) {
+  if (ignorePops > 0) { pendingPush.push(st); return; }
+  try { history.pushState(st, ''); } catch {}
+}
+function histFlush() { ignorePops = 0; clearTimeout(ignoreTimer); const q = pendingPush; pendingPush = []; q.forEach(histPush); }
+function histBack() {
+  ignorePops++; clearTimeout(ignoreTimer); ignoreTimer = setTimeout(histFlush, 700);
+  try { history.back(); } catch { histFlush(); }
+}
+function ovOpen(closeFn) { ovStack.push(closeFn); histPush({ nexusOv: ovStack.length }); }
+function ovClose(closeFn) {            // an in-app close button
   const i = ovStack.lastIndexOf(closeFn);
-  if (i >= 0 && i === ovStack.length - 1) { try { history.back(); return; } catch {} }
+  if (i >= 0 && i === ovStack.length - 1) { ovStack.pop(); closeFn(); histBack(); return; }
   if (i >= 0) ovStack.splice(i, 1);
   closeFn();
 }
-window.addEventListener('popstate', () => { const f = ovStack.pop(); if (f) f(); });
+function ovRelease(closeFn) {          // closed by other code: just drop its history entry
+  const i = ovStack.lastIndexOf(closeFn); if (i < 0) return;
+  if (i === ovStack.length - 1) { ovStack.pop(); histBack(); } else ovStack.splice(i, 1);
+}
+function navRestore(n) {
+  navRestoring = true;
+  try {
+    if (n.mode !== store.mode) applyMode(n.mode);
+    document.querySelector(`${n.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)'} .rail-btn[data-go="${n.go}"]`)?.click();
+  } finally { navRestoring = false; }
+  navCur = { go: n.go, mode: n.mode };
+}
+window.addEventListener('popstate', (e) => {
+  if (ignorePops > 0) { ignorePops--; if (!ignorePops) histFlush(); return; }
+  const f = ovStack.pop(); if (f) { f(); return; }
+  if (e.state && e.state.nexusOv) { try { history.back(); } catch {} return; }   // skip a leftover layer entry
+  if (e.state && e.state.nexusNav) navRestore(e.state.nexusNav);
+});
 let toastTimer = null;
 function toast(msg, kind, ms) {
   let t = document.getElementById('toast');
@@ -669,6 +699,7 @@ async function doExport() {
 function showPassPanel() {
   const main = document.getElementById('settingsMain');
   const panel = document.getElementById('passPanel');
+  if (panel && panel.hasAttribute('hidden')) ovOpen(hidePassPanel);
   if (main) main.style.display = 'none';
   if (panel) {
     panel.removeAttribute('hidden');
@@ -677,6 +708,7 @@ function showPassPanel() {
   drawPasswords();
 }
 function hidePassPanel() {
+  ovRelease(hidePassPanel);
   const main = document.getElementById('settingsMain');
   const panel = document.getElementById('passPanel');
   if (panel) {
@@ -1063,6 +1095,9 @@ window.addEventListener('focus', tick);
 /* Navigation */
 document.querySelectorAll('.rail-btn').forEach(btn => {
   btn.onclick = () => {
+    const ne = document.getElementById('noteEditor');
+    if (ne && !ne.hidden) { closeNoteEditor(); ovRelease(closeNoteEditor); }
+    hidePassPanel();
     document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const v = btn.dataset.go;
@@ -1076,6 +1111,10 @@ document.querySelectorAll('.rail-btn').forEach(btn => {
     if (v === 'watch') drawWatch();
     if (v === 'read') setReadMode(readMode);
     if (v === 'import') setImportMode(importMode);
+    if (!navRestoring) {
+      const cur = { go: v, mode: store.mode };
+      if (cur.go !== navCur.go || cur.mode !== navCur.mode) { navCur = cur; histPush({ nexusNav: cur }); }
+    }
   };
 });
 document.querySelectorAll('[data-go-chill]').forEach(btn => {
@@ -1083,6 +1122,23 @@ document.querySelectorAll('[data-go-chill]').forEach(btn => {
     document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
   });
 });
+
+/* Sheets & dialogs: Back closes them (and resets their forms) */
+function closeSheetsNow() {
+  [resetClassForm, resetEventForm, resetTaskForm, resetPersonForm, resetStoryForm, resetPassForm].forEach(f => { try { f(); } catch {} });
+  document.getElementById('backdrop')?.classList.remove('open');
+  document.querySelectorAll('.sheet.open').forEach(s => s.classList.remove('open'));
+}
+(function watchSheets() {
+  const bd = document.getElementById('backdrop');
+  let was = false;
+  const mo = new MutationObserver(() => {
+    const open = !!(bd && bd.classList.contains('open')) || !!document.querySelector('.sheet.open');
+    if (open && !was) { was = true; ovOpen(closeSheetsNow); }
+    else if (!open && was) { was = false; ovRelease(closeSheetsNow); }
+  });
+  [bd, ...document.querySelectorAll('.sheet')].filter(Boolean).forEach(el => mo.observe(el, { attributes: true, attributeFilter: ['class'] }));
+})();
 
 /* Color chips + free color picker */
 function chips(el) {
@@ -1821,6 +1877,7 @@ const $n = (i) => document.getElementById(i);
 let noteTimer = null;
 
 function openNoteForm(n) {
+  if ($n('noteEditor').hidden) ovOpen(closeNoteEditor);
   $n('n-edit-id').value = n ? n.id : '';
   $n('n-title').value = n ? (n.title || '') : '';
   $n('n-body').value = n ? (n.body || '') : '';
@@ -1875,14 +1932,14 @@ function closeNoteEditor() {
   noteTimer = setTimeout(commitNote, 600);
 }));
 $n('btnAddNote').onclick = () => openNoteForm(null);
-$n('noteBack').onclick = closeNoteEditor;
+$n('noteBack').onclick = () => ovClose(closeNoteEditor);
 $n('deleteNote').onclick = () => {
   const editId = $n('n-edit-id').value;
   if (!editId || !confirm('Delete this note?')) return;
   store.notes = store.notes.filter(x => x.id !== editId);
   save();
   $n('n-edit-id').value = '';
-  closeNoteEditor();
+  ovClose(closeNoteEditor);
 };
 
 /* ---------- WALLET ---------- */
@@ -2446,8 +2503,9 @@ let mgSeriesId = null;
 const ARC_ACCEPT = '.cbz,.zip,application/zip,application/x-zip-compressed,application/x-cbz,application/vnd.comicbook+zip,application/octet-stream';
 const mgFind = (mid) => store.chillMedia.find(x => x.id === mid && x.type === 'manga');
 const nextChapterName = (m) => 'Chapter ' + (m ? mangaChapters(m).length + 1 : 1);
-function mgSheetOpen(html) { $m('mgSheet').innerHTML = html; $m('mgSheetBack').hidden = false; }
-function mgSheetClose() { $m('mgSheetBack').hidden = true; $m('mgSheet').innerHTML = ''; }
+function mgSheetOpen(html) { const was = !$m('mgSheetBack').hidden; $m('mgSheet').innerHTML = html; $m('mgSheetBack').hidden = false; if (!was) ovOpen(mgSheetHide); }
+function mgSheetHide() { $m('mgSheetBack').hidden = true; $m('mgSheet').innerHTML = ''; }
+function mgSheetClose() { mgSheetHide(); ovRelease(mgSheetHide); }
 $m('mgSheetBack')?.addEventListener('click', (e) => { if (e.target.id === 'mgSheetBack') mgSheetClose(); });
 $m('mgPlus')?.addEventListener('click', () => {
   const has = store.chillMedia.some(m => m.type === 'manga');
@@ -3531,7 +3589,8 @@ document.getElementById('deletePass')?.addEventListener('click', (e) => {
 });
 
 /* First-run Terms */
-const TOS_KEY = 'nexus-tos-v1';
+const TOS_KEY = 'nexus-tos-v2'; // bumped for v1.4.6 so everyone sees the updated terms once
+let tosReview = false;
 function tosAccepted() { return localStorage.getItem(TOS_KEY) === '1'; }
 function showTos(review) {
   const gate = document.getElementById('tosGate');
@@ -3539,6 +3598,8 @@ function showTos(review) {
   const btn = document.getElementById('tosAccept');
   if (!gate) return;
   gate.hidden = false;
+  tosReview = !!review;
+  if (review) ovOpen(hideTos);
   if (review) {
     if (agree) { agree.checked = true; agree.disabled = true; }
     if (btn) { btn.disabled = false; btn.textContent = 'Close'; }
@@ -3561,13 +3622,16 @@ document.getElementById('tosAccept')?.addEventListener('click', () => {
     if (!agree?.checked) return;
     localStorage.setItem(TOS_KEY, '1');
   }
-  hideTos();
+  if (tosReview) { tosReview = false; ovClose(hideTos); } else hideTos();
 });
 
 /* First-run terms gate — previously shown after the splash faded out */
 function maybeShowTos() {
   if (!tosAccepted()) showTos(false);
 }
+
+document.getElementById('appVersionValue') && (document.getElementById('appVersionValue').textContent = APP_VERSION_LABEL);
+document.getElementById('tosVersion') && (document.getElementById('tosVersion').textContent = 'Nexus ' + APP_VERSION_LABEL + ' · Last updated October 5, 2026');
 
 /* Boot */
 function boot() {

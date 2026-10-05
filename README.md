@@ -1,5 +1,7 @@
 # Nexus — Student OS
 
+**Version:** v1.4.6 (beta)
+
 Nexus is an all-in-one student organizer that keeps your school life in one
 place: your class timetable, tasks, people, notes and money. It is built for
 students who want to stay on top of deadlines and daily expenses without

@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Nexus — Student OS</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="nexus.css">
 </head>
 <body>
@@ -17,22 +14,29 @@
   <div class="tos-card">
     <img src="assets/nexus-icon.png" alt="" class="tos-logo">
     <h1>Terms &amp; Conditions</h1>
-    <p class="tos-intro">Please read this before using Nexus for the first time.</p>
+    <p class="tos-version" id="tosVersion">Nexus v1.4.6 (beta)</p>
+    <p class="tos-intro">Please read this before using Nexus.</p>
     <div class="tos-body">
       <h2>1. What Nexus is</h2>
-      <p>Nexus is a local student planner. It runs on your device and is provided as-is for personal, educational use.</p>
-      <h2>2. Your data stays on this device</h2>
-      <p>Classes, tasks, notes, wallet, events, and passwords are stored in this browser/app only. There is no cloud account. Uninstalling the app, clearing site data, or switching devices can erase everything unless you export a backup.</p>
-      <h2>3. Passwords are not encrypted</h2>
-      <p>The Password Manager stores entries on this device in readable form. Do not store passwords here if others can access this phone. Keep the device locked.</p>
-      <h2>4. Notifications</h2>
-      <p>Reminders only work if you grant notification permission. Delivery is not guaranteed when the app is closed or the system restricts background activity.</p>
-      <h2>5. Accuracy</h2>
+      <p>Nexus is a student planner with an optional Chill Mode for music, video and manga. It is developed by Arch-Zylo, runs on your device, and is provided as-is for personal use.</p>
+      <h2>2. Beta software</h2>
+      <p>This is a beta release. Features can change, behave unexpectedly or be removed, and bugs can cause data loss. Do not rely on Nexus as the only copy of anything important.</p>
+      <h2>3. Your data stays on this device</h2>
+      <p>Classes, tasks, notes, people, wallet, events, passwords, settings and Chill Mode files are stored on this device only. There is no account and no cloud sync, and Nexus does not upload your data anywhere. Nexus works fully offline: it does not connect to the internet or contact any server. Uninstalling the app, clearing app data or switching phones can erase everything unless you export a backup.</p>
+      <h2>4. Chill Mode files</h2>
+      <p>Music, videos, manga pages, lyrics and other files you import are copied into Nexus's storage on this device and use space on it. You choose what to import and you are responsible for it: make sure you have the right to use it, that it is lawful, and that it is suitable for anyone who can use your device. Nexus does not supply, scan or moderate content. Song details (title, artist, cover, embedded lyrics) are read from the file on your device only. If you use Share, the file is handed to the app you choose.</p>
+      <h2>5. Passwords are not encrypted</h2>
+      <p>The Password Manager stores entries on this device in readable form, and they are included in backup files the same way. Do not store passwords here if others can access this phone. Keep the device locked.</p>
+      <h2>6. Backups and wiping</h2>
+      <p>Export in Settings creates a backup file. If you have Chill Mode files, it is a .nexusbackup file that includes them and can be large (up to about 4 GB). Backup files are not encrypted and contain everything, including passwords, so keep them somewhere safe. Importing a backup replaces your current data. Wipe All Data permanently deletes everything on this device, including Chill Mode files and the on-device backup copy, and cannot be undone. We cannot recover data you did not export.</p>
+      <h2>7. Notifications</h2>
+      <p>Reminders only work if you grant notification permission. Delivery is not guaranteed when the app is closed or the system restricts background activity. In a web browser, reminders only work while Nexus is open.</p>
+      <h2>8. Accuracy</h2>
       <p>You are responsible for the information you enter (schedules, amounts, due dates). Nexus does not replace official school records or financial advice.</p>
-      <h2>6. Backups</h2>
-      <p>Export regularly from Settings → Backup. We cannot recover data you did not export.</p>
-      <h2>7. Changes</h2>
-      <p>These terms may be updated in future versions. Continued use after an update means you accept the new terms.</p>
+      <h2>9. No warranty</h2>
+      <p>Nexus is provided &ldquo;as is&rdquo;, without warranties of any kind. To the extent the law allows, the developer is not liable for lost data, missed reminders or any other damage from using it.</p>
+      <h2>10. Changes</h2>
+      <p>These terms are updated with new versions. When they change you will be asked to accept them again; continuing to use Nexus means you accept the current terms.</p>
     </div>
     <label class="tos-check">
       <input type="checkbox" id="tosAgree">
@@ -477,6 +481,7 @@
             <span class="set-label">Storage</span>
             <span class="set-value" id="storageValue">—</span>
           </div>
+          <div class="set-row static"><span class="set-label">Version</span><span class="set-value" id="appVersionValue">v1.4.6 (beta)</span></div>
           <button type="button" class="set-row" data-set="terms">
             <span class="set-label">Terms &amp; Conditions</span>
             <span class="set-chevron">›</span>
