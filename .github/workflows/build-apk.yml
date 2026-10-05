@@ -150,8 +150,8 @@ jobs:
         run: cd android && ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: nexus-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+          archive: false
           if-no-files-found: error

@@ -393,6 +393,8 @@ function applyMode(mode) {
   store.mode = mode;
   save();
   document.documentElement.setAttribute('data-mode', mode === 'chill' ? 'chill' : '');
+  const mv = document.getElementById('modeValue');
+  if (mv) mv.textContent = mode === 'chill' ? 'Chill' : 'Regular';
 }
 function setAppMode(mode) {
   applyMode(mode);
@@ -422,6 +424,7 @@ document.querySelectorAll('[data-mode-pick]').forEach(btn => {
   });
 });
 document.getElementById('themeBtnChill')?.addEventListener('click', nextTheme);
+document.querySelectorAll('[data-mode-toggle]').forEach(b => b.addEventListener('click', () => setAppMode(store.mode === 'chill' ? 'regular' : 'chill')));
 
 /* Wipe data — 3 different confirmations */
 function wipeAllData() {
@@ -834,7 +837,11 @@ document.getElementById('view-config')?.addEventListener('click', (e) => {
   else if (action === 'classnotify') toggleClassNotify();
   else if (action === 'classnotifylead') cycleClassNotifyLead();
   else if (action === 'passwords') showPassPanel();
-  else if (action === 'mode') showModePanel();
+  else if (action === 'mode') {
+    // Same behaviour as the Theme row: one tap flips it, you stay in Settings
+    applyMode(store.mode === 'chill' ? 'regular' : 'chill');
+    document.querySelector(store.mode === 'chill' ? '.rail-chill [data-go="config"]' : '.rail:not(.rail-chill) [data-go="config"]')?.click();
+  }
   else if (action === 'export') doExport();
   else if (action === 'import') {
     const backup = localStorage.getItem(BACKUP_KEY);
@@ -2544,7 +2551,7 @@ async function openVideo(mid) {
 function closeVideo() {
   vpV.pause(); vpV.removeAttribute('src'); vpV.load();
   if (vidUrl) { URL.revokeObjectURL(vidUrl); vidUrl = null; }
-  if (document.fullscreenElement) document.exitFullscreen?.();
+  if (vpFsOn) vpExitFs();
   $c('vidPlayer').hidden = true;
 }
 const vpSkip = (s) => { vpV.currentTime = Math.max(0, Math.min(vpV.duration || 0, vpV.currentTime + s)); vpShowUi(); };
@@ -2556,7 +2563,26 @@ $c('vpSpeed')?.addEventListener('click', () => {
   const sp = [1, 1.25, 1.5, 2, 0.75]; const n = sp[(sp.indexOf(vpV.playbackRate) + 1) % sp.length];
   vpV.playbackRate = n; $c('vpSpeed').textContent = n + '×'; vpShowUi();
 });
-$c('vpFs')?.addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen?.(); else $c('vidPlayer').requestFullscreen?.(); });
+/* Fullscreen = landscape. Try the real fullscreen + orientation lock; if the WebView
+   refuses to rotate, turn the player 90° with CSS so it is still landscape. */
+let vpFsOn = false;
+function vpApplyRot() { $c('vidPlayer').classList.toggle('rot', vpFsOn && window.innerHeight > window.innerWidth); }
+async function vpEnterFs() {
+  vpFsOn = true;
+  try { await $c('vidPlayer').requestFullscreen?.(); document.documentElement.dataset.fsApi = document.fullscreenElement ? '1' : ''; } catch {}
+  try { await screen.orientation?.lock?.('landscape'); } catch {}
+  vpApplyRot(); setTimeout(vpApplyRot, 350);
+  $c('vpFs').textContent = '⤢';
+}
+function vpExitFs() {
+  vpFsOn = false;
+  try { screen.orientation?.unlock?.(); } catch {}
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  vpApplyRot(); $c('vpFs').textContent = '⛶';
+}
+$c('vpFs')?.addEventListener('click', () => { if (vpFsOn) vpExitFs(); else vpEnterFs(); });
+window.addEventListener('resize', vpApplyRot);
+document.addEventListener('fullscreenchange', () => { if (vpFsOn && !document.fullscreenElement && !$c('vidPlayer').hidden && document.documentElement.dataset.fsApi) vpExitFs(); });
 vpV?.addEventListener('play', () => { $c('vpPlay').textContent = '⏸'; vpShowUi(); });
 vpV?.addEventListener('pause', () => { $c('vpPlay').textContent = '▶'; vpShowUi(); });
 vpV?.addEventListener('timeupdate', () => {
@@ -2569,7 +2595,7 @@ $c('vpSeek')?.addEventListener('change', () => { if (vpV.duration) vpV.currentTi
 // tap video = show/hide controls, double-tap left/right = seek 10s
 vpV?.addEventListener('click', (e) => {
   const now = Date.now();
-  if (now - vpLastTap < 300) { const r = vpV.getBoundingClientRect(); vpSkip(e.clientX < r.left + r.width / 2 ? -10 : 10); vpLastTap = 0; return; }
+  if (now - vpLastTap < 300) { const rot = $c('vidPlayer').classList.contains('rot'); const left = rot ? e.clientY < window.innerHeight / 2 : e.clientX < window.innerWidth / 2; vpSkip(left ? -10 : 10); vpLastTap = 0; return; }
   vpLastTap = now;
   if ($c('vpUi').classList.contains('off')) vpShowUi(); else { clearTimeout(vpHide); $c('vpUi').classList.add('off'); }
 });

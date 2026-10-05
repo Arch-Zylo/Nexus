@@ -70,6 +70,7 @@
       </button>
     </nav>
     <div class="rail-footer">
+      <button class="theme-toggle" id="modeBtn_themeBtn" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
       <button class="theme-toggle" id="themeBtn" title="Toggle theme">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       </button>
@@ -100,6 +101,7 @@
       </button>
     </nav>
     <div class="rail-footer">
+      <button class="theme-toggle" id="modeBtn_themeBtnChill" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
       <button class="theme-toggle" id="themeBtnChill" title="Toggle theme">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       </button>
@@ -437,7 +439,7 @@
         <div class="set-list">
           <button type="button" class="set-row" data-set="mode">
             <span class="set-label">Mode</span>
-            <span class="set-chevron">›</span>
+            <span class="set-value" id="modeValue">Regular</span>
           </button>
           <div class="set-row set-row-split">
             <span class="set-label">Backup</span>
