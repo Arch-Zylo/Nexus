@@ -642,8 +642,6 @@
           <div class="manga-import">
             <button type="button" class="mg-plus" id="mgPlus" title="Add a series or a chapter"><span>＋</span>Add series or chapter</button>
             <div class="mg-hint" id="mgStatus"></div>
-            <input type="file" id="importMangaFile" accept="image/*,.cbz,.zip" multiple hidden>
-            <input type="file" id="importMangaFolder" webkitdirectory multiple hidden>
           </div>
           <div id="importMangaList" class="chill-list"></div>
         </div>
@@ -674,7 +672,7 @@
     </div>
     <div class="np-pager" id="npPager">
       <div class="np-page"><div class="np-queue" id="npQueue"></div></div>
-      <div class="np-page np-pg-art"><div class="np-art" id="npArt">♪</div></div>
+      <div class="np-page np-pg-art"><div class="np-art-wrap"><div class="np-ring" id="npRing"></div><div class="np-orbit" id="npOrbit"></div><div class="np-art" id="npArt">♪</div></div><canvas class="np-viz" id="npViz"></canvas></div>
       <div class="np-page">
         <div class="np-lyr-scroll" id="npLyrScroll"><div id="npLyricsView"><div id="npLyricsBody"></div><button type="button" class="btn btn-ghost np-lyr-btn" id="npLyricsEditBtn">Add lyrics</button></div></div>
         <div class="np-lyr-edit" id="npLyricsEdit" hidden>

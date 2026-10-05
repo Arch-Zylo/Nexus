@@ -2262,6 +2262,12 @@ function parseMangaPath(s) {
   const p = (s || '').split('/').map(x => x.trim()).filter(Boolean);
   return { title: p[0] || '', chapter: p[1] || 'Chapter 1' };
 }
+// Order chapters by their first number (Chapter 2 < ch3 < Chapter 10), falling back to name
+function chapterCmp(a, b) {
+  const na = parseFloat((a.name.match(/\d+(?:\.\d+)?/) || [])[0]), nb = parseFloat((b.name.match(/\d+(?:\.\d+)?/) || [])[0]);
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+}
 let mgTick = () => {};
 let mgFailed = 0;
 async function addMangaChapter(title, chapter, files) {
@@ -2282,7 +2288,7 @@ async function addMangaChapter(title, chapter, files) {
   const base = ch.pages.length;
   pages.forEach((p, i) => { p.order = base + i; });
   ch.pages.push(...pages);
-  m.chapters.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  m.chapters.sort(chapterCmp);
   m.size = mangaAllPages(m).length;
   thumbBad.delete(m.id);
   return pages.length;
@@ -2431,12 +2437,13 @@ async function runMangaGroups(groups) {
   for (const g of groups) { pages += await addMangaChapter(g.title, g.chapter, g.files); last = g; }
   mgStatus('');
   if (pages) mangaImported(pages, last.title, groups.length > 1 ? groups.length + ' chapters' : last.chapter);
+  else if (!mgFailed) toast('No readable images found.', 'err');
   if (mgFailed) toast(`${mgFailed} page${mgFailed === 1 ? '' : 's'} could not be saved — storage may be full.`, 'err', 6000);
-  else toast('No readable images found.');
 }
 /* ---- Manga import UI: "+" → New series / New chapter; series page → chapters ---- */
 const $m = (i) => document.getElementById(i);
-let mgCtx = null, mgSeriesId = null;
+let mgSeriesId = null;
+const ARC_ACCEPT = '.cbz,.zip,application/zip,application/x-zip-compressed,application/x-cbz,application/vnd.comicbook+zip,application/octet-stream';
 const mgFind = (mid) => store.chillMedia.find(x => x.id === mid && x.type === 'manga');
 const nextChapterName = (m) => 'Chapter ' + (m ? mangaChapters(m).length + 1 : 1);
 function mgSheetOpen(html) { $m('mgSheet').innerHTML = html; $m('mgSheetBack').hidden = false; }
@@ -2454,7 +2461,7 @@ function mgNewSeries() {
   mgSheetOpen(`<div class="mg-sh-title">New series</div>
     <input id="mgSeriesName" class="mg-input" placeholder="Series title" autocomplete="off">
     <button type="button" class="btn btn-gold" id="mgCreate">Create series</button>
-    <button type="button" class="btn btn-ghost" id="mgAutoFolder">Import a whole folder instead</button>
+    <label class="btn btn-ghost mg-lab">Import a whole folder instead<input type="file" id="mgPickAuto" webkitdirectory multiple hidden></label>
     <button type="button" class="btn btn-ghost" id="mgBack">‹ Back</button>
     <p class="mg-hint">Folder import reads <b>series / chapter / images</b> (or a folder of series) and creates everything at once.</p>`);
   $m('mgSeriesName').focus();
@@ -2471,7 +2478,7 @@ function mgNewSeries() {
   };
   $m('mgCreate').onclick = create;
   $m('mgSeriesName').onkeydown = (e) => { if (e.key === 'Enter') create(); };
-  $m('mgAutoFolder').onclick = () => { mgCtx = { mode: 'auto' }; $m('importMangaFolder').click(); };
+  $m('mgPickAuto').onchange = () => { const files = Array.from($m('mgPickAuto').files || []); mgSheetClose(); if (files.length) mgImportFolder(files, { mode: 'auto' }); };
   $m('mgBack').onclick = () => $m('mgPlus').click();
 }
 function mgPickSeries() {
@@ -2485,14 +2492,15 @@ function mgPickSeries() {
 function mgChapterSheet(mid) {
   const m = mgFind(mid); if (!m) return;
   mgSheetOpen(`<div class="mg-sh-title">Add chapter · ${esc(m.title)}</div>
-    <input id="mgChName" class="mg-input" placeholder="Chapter name" value="${esc(nextChapterName(m))}" autocomplete="off">
-    <button type="button" class="btn btn-gold" id="mgImg">Select panels / .cbz / .zip</button>
-    <button type="button" class="btn btn-ghost" id="mgFold">Import a folder of chapters</button>
+    <input id="mgChapterName" class="mg-input" placeholder="Chapter name" value="${esc(nextChapterName(m))}" autocomplete="off">
+    <label class="btn btn-gold mg-lab">Select panels (images)<input type="file" id="mgPickImgs" accept="image/*" multiple hidden></label>
+    <label class="btn btn-ghost mg-lab">Select .cbz / .zip<input type="file" id="mgPickArc" accept="${ARC_ACCEPT}" multiple hidden></label>
+    <label class="btn btn-ghost mg-lab">Import a folder of chapters<input type="file" id="mgPickDir" webkitdirectory multiple hidden></label>
     <button type="button" class="btn btn-ghost" id="mgCancel2">Cancel</button>
-    <p class="mg-hint">Select all the panels at once — they're ordered by file name (image1, image2 … image10). Each .cbz/.zip becomes its own chapter.</p>`);
-  const ctx = () => { mgCtx = { mode: 'chapter', mid, chapter: $m('mgChName').value.trim(), def: nextChapterName(m) }; };
-  $m('mgImg').onclick = () => { ctx(); $m('importMangaFile').click(); };
-  $m('mgFold').onclick = () => { ctx(); $m('importMangaFolder').click(); };
+    <p class="mg-hint">Select all the panels at once — they're ordered by file name (image1, image2 … image10). Each .cbz/.zip becomes its own chapter. Folder import needs a file picker that supports folders.</p>`);
+  const ctxNow = () => ({ mode: 'chapter', mid, chapter: ($m('mgChapterName')?.value || '').trim(), def: nextChapterName(m) });
+  const bind = (inputId, fn) => { const el = $m(inputId); el.onchange = () => { const files = Array.from(el.files || []), ctx = ctxNow(); mgSheetClose(); if (files.length) fn(files, ctx); }; };
+  bind('mgPickImgs', mgImportFiles); bind('mgPickArc', mgImportFiles); bind('mgPickDir', mgImportFolder);
   $m('mgCancel2').onclick = mgSheetClose;
 }
 function closeSeries() { $m('mgSeries').hidden = true; mgSeriesId = null; }
@@ -2536,10 +2544,7 @@ $m('mgSeriesBack')?.addEventListener('click', () => ovClose(closeSeries));
 $m('mgAddCh')?.addEventListener('click', () => { if (mgSeriesId) mgChapterSheet(mgSeriesId); });
 $m('mgSeriesDel')?.addEventListener('click', () => { const m = mgSeriesId && mgFind(mgSeriesId); if (m) mgDeleteSeries(m); });
 
-$m('importMangaFile')?.addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files || []); e.target.value = '';
-  const ctx = mgCtx; mgSheetClose();
-  if (!files.length || !ctx || ctx.mode !== 'chapter') return;
+async function mgImportFiles(files, ctx) {
   const m = mgFind(ctx.mid); if (!m) return;
   const custom = ctx.chapter && ctx.chapter !== ctx.def ? ctx.chapter : '';
   const imgs = files.filter(f => isImg(f.name) || (f.type || '').startsWith('image/')), arcs = files.filter(f => isArc(f.name));
@@ -2551,14 +2556,12 @@ $m('importMangaFile')?.addEventListener('change', async (e) => {
       for (const a of got) groups.push({ title: m.title, chapter: custom && arcs.length === 1 && !imgs.length && got.length === 1 ? custom : a.chapter, files: a.files });
     }
   } catch (err) { toast(err.message, 'err'); }
-  if (groups.length) await runMangaGroups(groups); else toast('No images or .cbz files were selected.', 'err');
-});
-$m('importMangaFolder')?.addEventListener('change', async (e) => {
-  const items = Array.from(e.target.files || []).map(f => ({ f, p: (f.webkitRelativePath || f.name).split('/') }))
+  if (groups.length) await runMangaGroups(groups); else toast('Nothing importable was selected (images, .cbz or .zip).', 'err');
+}
+async function mgImportFolder(fileList, ctx) {
+  const items = Array.from(fileList).map(f => ({ f, p: (f.webkitRelativePath || f.name).split('/') }))
     .filter(x => !x.p.some(s => s.startsWith('.') || s === '__MACOSX'));
-  e.target.value = '';
-  const ctx = mgCtx; mgSheetClose();
-  if (!items.length || !ctx) return;
+  if (!items.length) return;
   const root = items[0].p[0], map = new Map();
   const add = (title, chapter, files) => { const k = title + '\0' + chapter; if (!map.has(k)) map.set(k, { title, chapter, files: [] }); map.get(k).files.push(...files); };
   try {
@@ -2586,12 +2589,12 @@ $m('importMangaFolder')?.addEventListener('change', async (e) => {
   } catch (err) { toast(err.message, 'err'); }
   if (map.size) await runMangaGroups([...map.values()]);
   else toast('No images or .cbz files found in that folder.', 'err');
-});
+}
 
 /* ---- Thumbnails (music art, video frame, manga cover) ---- */
 const thumbUrls = new Map(), thumbBad = new Set();
 const hueOf = (s) => { let h = 0; for (const c of String(s || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
-const artStyle = (t) => { const h = hueOf(t); return `background:linear-gradient(135deg,hsl(${h},55%,38%),hsl(${(h + 50) % 360},60%,22%))`; };
+const artStyle = (t) => { const h = hueOf(t); return `background-image:linear-gradient(135deg,hsl(${h},55%,38%),hsl(${(h + 50) % 360},60%,22%))`; };
 async function blobToThumb(blob, w) {
   try {
     const bmp = await createImageBitmap(blob);
@@ -2773,10 +2776,54 @@ setTimeout(metaPass, 1500);
 const npPager = () => $c('npPager');
 function openNowPlaying(page) {
   if ($c('nowPlaying').hidden) { $c('nowPlaying').hidden = false; ovOpen(closeNowPlaying); }
-  drawNpQueue(); updateNpHeader();
+  drawNpQueue(); updateNpHeader(); vizStart();
   const p = npPager(); p.scrollLeft = (page == null ? 1 : page) * p.clientWidth;
 }
 function closeNowPlaying() { $c('nowPlaying').hidden = true; }
+
+/* ---- audio graph under the album art (taps the playing audio; playback itself is untouched) ---- */
+let vizCtx = null, vizAn = null, vizData = null, vizSrc = null, vizRaf = 0, vizFail = false;
+const vizSm = new Float32Array(40);
+function vizAttach() {
+  if (vizFail) return;
+  try {
+    if (!vizCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { vizFail = true; return; }
+      vizCtx = new AC(); vizAn = vizCtx.createAnalyser(); vizAn.fftSize = 256; vizAn.smoothingTimeConstant = 0.7;
+      vizData = new Uint8Array(vizAn.frequencyBinCount);
+    }
+    if (vizCtx.state === 'suspended') vizCtx.resume().catch(() => {});
+    const cap = chillAudio.captureStream || chillAudio.mozCaptureStream;
+    if (!cap) { vizFail = true; return; }
+    const stream = cap.call(chillAudio);
+    if (!stream.getAudioTracks().length) return;
+    if (vizSrc) { try { vizSrc.disconnect(); } catch {} }
+    vizSrc = vizCtx.createMediaStreamSource(stream); vizSrc.connect(vizAn);
+  } catch (e) { console.warn('Nexus: audio graph unavailable', e); vizFail = true; }
+}
+function vizStart() { if (!vizRaf) vizRaf = requestAnimationFrame(vizDraw); }
+function vizDraw() {
+  vizRaf = 0;
+  const cv = $c('npViz'); if (!cv || $c('nowPlaying').hidden) return;
+  cv.style.visibility = vizFail ? 'hidden' : 'visible';
+  const W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+  if (W && (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr))) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const live = vizAn && !chillAudio.paused; if (live) vizAn.getByteFrequencyData(vizData);
+  const N = 36, gap = 4, bw = (W - gap * (N - 1)) / N, grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#ffb8a8'); grad.addColorStop(1, '#ff6b5e'); g.fillStyle = grad;
+  for (let i = 0; i < N; i++) {
+    const idx = live ? Math.min(vizData.length - 1, Math.floor(Math.pow(i / N, 1.5) * vizData.length * 0.7)) : 0;
+    const v = live ? vizData[idx] / 255 : 0;
+    vizSm[i] = Math.max(v, vizSm[i] * 0.88);
+    const bh = Math.max(4, vizSm[i] * H), x = i * (bw + gap), y = (H - bh) / 2, r = Math.min(bw / 2, bh / 2);
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + bw, y, x + bw, y + bh, r); g.arcTo(x + bw, y + bh, x, y + bh, r); g.arcTo(x, y + bh, x, y, r); g.arcTo(x, y, x + bw, y, r); g.fill();
+  }
+  vizRaf = requestAnimationFrame(vizDraw);
+}
+chillAudio?.addEventListener('playing', () => { vizAttach(); vizStart(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && vizCtx && vizCtx.state === 'suspended') vizCtx.resume().catch(() => {}); });
 function updateNpHeader() {
   const m = chillQueue[chillQueueIndex]; if (!m) return;
   $c('npTitle').textContent = m.title; $c('npArtist').textContent = artistOf(m);
@@ -2810,6 +2857,7 @@ function syncPlayUi() {
   const p = !chillAudio.paused;
   $c('mpPlay').textContent = p ? '⏸' : '▶';
   $c('npPlay').innerHTML = svgI(p ? IC.pause : IC.play, 46);
+  $c('npRing')?.classList.toggle('paused', !p); $c('npOrbit')?.classList.toggle('paused', !p);
   $c('mpSub').textContent = chillAudio.src ? (p ? 'Playing' : 'Paused') : 'Not playing';
   if (!$c('nowPlaying').hidden) drawNpQueue();
 }
