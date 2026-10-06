@@ -1700,3 +1700,16 @@ a { color: inherit; text-decoration: none; }
 .chill-row-icon { display: inline-flex; align-items: center; }
 
 .vp.rot .vp-ui { padding: 14px 26px; }
+
+/* ---------- Chill dashboard ---------- */
+.donut-legend { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: 0.68rem; color: var(--mist); }
+.cprog { height: 3px; background: var(--line-soft); border-radius: 2px; margin-top: 7px; overflow: hidden; }
+.cprog > i { display: block; height: 100%; background: var(--gold); border-radius: 2px; }
+.ch-pp { background: none; border: 0; color: var(--snow); padding: 8px; display: flex; align-items: center; }
+.cstrip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
+.cstrip::-webkit-scrollbar { display: none; }
+.cstrip-item { flex: 0 0 96px; min-width: 0; cursor: pointer; }
+.thumb.cs { width: 96px; height: 96px; border-radius: 12px; font-size: 30px; }
+.cs-t { font-size: 0.8rem; font-weight: 600; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-s { font-size: 0.68rem; color: var(--mist); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view-chome .chill-row { cursor: pointer; }

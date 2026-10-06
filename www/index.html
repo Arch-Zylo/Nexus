@@ -537,9 +537,10 @@
       <!-- CHILL HOME -->
       <section class="view" id="view-chome">
         <div class="hero">
-          <h1>Chill</h1>
-          <p class="hero-sub">Your downtime stuff — music, shows, and reading.</p>
+          <h1 id="chGreet">Chill</h1>
+          <p id="chGreetSub">Your downtime stuff — music, shows, and reading.</p>
         </div>
+        <div class="metrics" id="chMetrics"></div>
         <div class="chill-quick-grid">
           <button type="button" class="chill-quick-tile" data-go-chill="music">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -558,9 +559,27 @@
             <span>Import</span>
           </button>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h2>Recently Added</h2></div>
-          <div class="panel-body" id="chillRecent"></div>
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-head"><h2>Now Playing</h2></div>
+            <div class="panel-body" id="chNow"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Continue Reading</h2></div>
+            <div class="panel-body" id="chReading"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Continue Watching</h2></div>
+            <div class="panel-body" id="chWatching"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Favourites</h2></div>
+            <div class="panel-body" id="chFavs"></div>
+          </div>
+          <div class="panel span2">
+            <div class="panel-head"><h2>Recently Added</h2></div>
+            <div class="panel-body" id="chillRecent"></div>
+          </div>
         </div>
       </section>
 

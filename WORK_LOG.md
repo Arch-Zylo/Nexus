@@ -1,5 +1,15 @@
 # Nexus — Work Log
 
+## Update 11 — Chill dashboard
+- [x] Chill home now mirrors the Regular home: a time-of-day greeting with a library summary, and **status tiles** in the same layout — *In Your Library* (total items), *Songs*, *Videos*, *Manga series*, *Stories* — plus a donut showing the library mix (songs / videos / manga / stories). Every tile jumps to its section
+- [x] **Preview panels** like Today's Classes / Due Soon: *Now Playing* (cover, artist, progress bar, play/pause; tap to open the player), *Continue Reading* (manga you've started, chapter + page, progress bar; tap resumes), *Continue Watching* (videos you paused part-way, with progress; tap resumes), *Favourites* (♡ songs; tap plays), and *Recently Added* (a swipeable strip of covers for songs, videos, manga and stories)
+- [x] Videos now **remember where you stopped** and resume there (short clips included); this feeds Continue Watching
+- [x] Now Playing on the dashboard updates live while a song plays
+- Kept the Music / Watch / Read / Import shortcut tiles
+
+**Verified in headless Chrome:** empty and filled dashboards, every tap target, play/pause from the dashboard, resume of video and manga
+**Not done:** a "recently played songs" list and listening stats (we don't record play history yet)
+
 ## Update 10 — Back button (native), landscape video, icons, Version row
 - [x] **Back button on Android, second attempt.** The history-based Back from Update 9 did not work in the phone's WebView, so Back is now handled by Capacitor's own App plugin: each press closes the newest layer (sheet, player, reader, editor, panel, Terms), otherwise returns to the previous screen, otherwise (on Regular Home) shows "Press back again to exit" and a second press exits. It no longer depends on WebView history. In a normal browser the earlier history-based Back is still used. **New dependency: `@capacitor/app`** (installed automatically by `npm install` in the workflow)
 - [x] **Landscape videos now rotate the player automatically** when a video is wider than tall; portrait videos stay upright. The ⛶ button toggles it for any video. With the new `@capacitor/screen-orientation` plugin Android really rotates the screen; if that isn't available the player turns itself 90° so it is still landscape. Root cause of the old behaviour: the fullscreen request waited on the WebView, which never answers, so the rotation never ran. **New dependency: `@capacitor/screen-orientation`**

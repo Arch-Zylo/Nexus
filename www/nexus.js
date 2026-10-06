@@ -2953,6 +2953,7 @@ function syncPlayUi() {
   $c('npRing')?.classList.toggle('paused', !p); $c('npOrbit')?.classList.toggle('paused', !p);
   $c('mpSub').textContent = chillAudio.src ? (p ? 'Playing' : 'Paused') : 'Not playing';
   if (!$c('nowPlaying').hidden) drawNpQueue();
+  if ($c('view-chome') && $c('view-chome').classList.contains('on')) drawChillHome();
 }
 async function playChillTrack(i) {
   if (i < 0 || i >= chillQueue.length) return;
@@ -2990,6 +2991,7 @@ chillAudio?.addEventListener('timeupdate', () => {
   if (!npSeeking) { $c('npSeek').value = d ? (t / d) * 1000 : 0; $c('npSeek').style.setProperty('--p', d ? (t / d) * 100 + '%' : '0%'); }
   $c('npCur').textContent = fmtT(t); $c('npDur').textContent = fmtT(d);
   $c('mpProg').style.width = d ? (t / d) * 100 + '%' : '0';
+  const nb = document.getElementById('chNpBar'); if (nb && d) nb.style.width = (t / d) * 100 + '%';
   syncLrc(t);
 });
 chillAudio?.addEventListener('ended', () => {
@@ -3120,6 +3122,7 @@ function drawWatch() {
   el.querySelectorAll('[data-watch]').forEach(tile => tile.addEventListener('click', () => openVideo(tile.dataset.watch)));
   hydrateThumbs(el);
 }
+let vpCur = null, vpLastSave = 0;
 let vidUrl = null, vpHide = null, vpSeeking = false, vpLastTap = 0;
 const vpV = $c('vpVideo');
 function vpShowUi() {
@@ -3135,13 +3138,19 @@ async function openVideo(mid) {
   chillAudio.pause();
   if (vidUrl) URL.revokeObjectURL(vidUrl);
   vidUrl = URL.createObjectURL(blob);
-  vpV.onloadedmetadata = () => { if (vpV.videoWidth > vpV.videoHeight && !vpFsOn) vpEnterFs(); };   // landscape video -> landscape player
+  vpV.onloadedmetadata = () => {
+    const resume = m.pos;
+    vpCur = m; m.dur = vpV.duration || m.dur;
+    if (resumable({ pos: resume, dur: vpV.duration })) vpV.currentTime = resume;
+    if (vpV.videoWidth > vpV.videoHeight && !vpFsOn) vpEnterFs();
+  };   // landscape video -> landscape player
   vpV.src = vidUrl; vpV.playbackRate = 1; $c('vpSpeed').textContent = '1×';
   $c('vpTitle').textContent = m.title;
   $c('vidPlayer').hidden = false; ovOpen(closeVideo);
   vpV.play().catch(() => {}); vpShowUi();
 }
 function closeVideo() {
+  if (vpCur) { vpCur.pos = vpV.currentTime || vpCur.pos; vpCur.seen = Date.now(); save(); vpCur = null; }
   vpV.pause(); vpV.removeAttribute('src'); vpV.load();
   if (vidUrl) { URL.revokeObjectURL(vidUrl); vidUrl = null; }
   if (vpFsOn) vpExitFs();
@@ -3192,6 +3201,13 @@ vpV?.addEventListener('timeupdate', () => {
 });
 $c('vpSeek')?.addEventListener('input', () => { vpSeeking = true; });
 $c('vpSeek')?.addEventListener('change', () => { if (vpV.duration) vpV.currentTime = ($c('vpSeek').value / 1000) * vpV.duration; vpSeeking = false; vpShowUi(); });
+vpV?.addEventListener('timeupdate', () => {
+  if (!vpCur) return;
+  vpCur.pos = vpV.currentTime; vpCur.dur = vpV.duration || vpCur.dur; vpCur.seen = Date.now();
+  if (Date.now() - vpLastSave > 10000) { vpLastSave = Date.now(); save(); }
+});
+vpV?.addEventListener('pause', () => { if (vpCur) save(); });
+vpV?.addEventListener('ended', () => { if (vpCur) { vpCur.pos = 0; save(); } });
 vpV?.addEventListener('error', () => { if (vpV.getAttribute('src')) toast('This video could not be played — the format may be unsupported.', 'err', 5000); });
 // tap video = show/hide controls, double-tap left/right = seek 10s
 vpV?.addEventListener('click', (e) => {
@@ -3423,20 +3439,112 @@ document.getElementById('deleteStory')?.addEventListener('click', () => {
 });
 
 /* ---- Chill Home ---- */
+// a video is "in progress" once you're past the intro and not at the very end (scaled for short clips)
+const resumable = (v) => !!(v && v.dur && v.pos > Math.min(5, v.dur * 0.1) && v.pos < v.dur - Math.min(8, v.dur * 0.1));
+async function playTrackById(tid) {
+  chillQueue = store.chillMedia.filter(m => m.type === 'music').sort((x, y) => (y.dateAdded || 0) - (x.dateAdded || 0));
+  const i = chillQueue.findIndex(x => x.id === tid); if (i < 0) return;
+  await playChillTrack(i); openNowPlaying(1);
+}
 function drawChillHome() {
-  const el = document.getElementById('chillRecent');
-  if (!el) return;
+  const mEl = document.getElementById('chMetrics'); if (!mEl) return;
+  const media = store.chillMedia, music = media.filter(m => m.type === 'music'), videos = media.filter(m => m.type === 'video'),
+    series = media.filter(m => m.type === 'manga'), stories = store.chillStories;
+  const total = music.length + videos.length + series.length + stories.length;
+  const go = (view) => document.querySelector(`.rail-chill [data-go="${view}"]`)?.click();
+  const pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+  // greeting, same style as Regular Home
+  const hr = new Date().getHours(), hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('chGreet').textContent = store.name ? `${hello}, Master ${store.name}` : hello;
+  document.getElementById('chGreetSub').textContent = total
+    ? `${pl(music.length, 'song')} · ${pl(videos.length, 'video')} · ${pl(series.length, 'series')} — all on this device.`
+    : 'Your downtime stuff — music, shows, and reading. Tap Import to add some.';
+
+  // status tiles (same look as Regular Home)
+  const tile = (cls, label, value, color, to, primary) => `
+    <div class="metric${primary ? ' primary' : ''}${cls ? ' ' + cls : ''}" data-chgo="${to}" style="cursor:pointer">
+      <div class="accent" style="background:${color}"></div>
+      <div class="label">${label}</div><div class="value">${value}</div>
+    </div>`;
+  const parts = [[music.length, COLORS[3], 'Songs'], [videos.length, COLORS[1], 'Videos'], [series.length, COLORS[4], 'Manga'], [stories.length, COLORS[0], 'Stories']];
+  let acc = 0;
+  const stops = parts.filter(p => p[0]).map(([n, col]) => { const s = acc; acc += n / total * 100; return `${col} ${s}% ${acc}%`; });
+  const pie = total ? `background:conic-gradient(${stops.join(', ')});` : `background:${COLORS[7]};opacity:0.25;`;
+  const center = total ? `<div class="donut-center"><div class="donut-total">${total}</div><div class="donut-sub">items</div></div>` : `<div class="donut-center"><div class="donut-sub">Empty</div></div>`;
+  const legend = parts.map(([n, col, nm]) => `<span title="${nm}"><b style="color:${col}">●</b> ${n}</span>`).join('');
+  mEl.innerHTML =
+    tile('', 'In Your Library', total, COLORS[4], 'import', true) +
+    tile('metric-opentasks', 'Songs', music.length, COLORS[3], 'music') +
+    tile('metric-classesleft', 'Videos', videos.length, COLORS[1], 'watch') +
+    `<div class="metric metric-spend" data-chgo="import" style="cursor:pointer" title="Library mix: songs, videos, manga, stories">
+       <div class="spend-pie" style="${pie}"><div class="donut-hole">${center}</div></div>
+       <div class="donut-legend">${legend}</div></div>` +
+    tile('', 'Manga series', series.length, COLORS[4], 'read') +
+    tile('', 'Stories', stories.length, COLORS[0], 'read');
+  mEl.querySelectorAll('[data-chgo]').forEach(t => { t.onclick = () => go(t.dataset.chgo); });
+
+  const thumbRow = (m, main, sub, extra, attrs) => `
+    <div class="chill-row" ${attrs}>
+      <div class="thumb sq" data-thumb="${m.id}" style="${artStyle(m.title)}"><span>${m.type === 'music' ? '♪' : m.type === 'video' ? '' : '📖'}</span></div>
+      <div class="chill-row-main"><div class="chill-row-title">${esc(main)}</div><div class="chill-row-sub">${esc(sub)}</div>${extra || ''}</div>
+    </div>`;
+  const bar = (pct, id) => `<div class="cprog"><i ${id ? `id="${id}"` : ''} style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`;
+
+  // Now Playing
+  const cur = chillCurId && chillAudio.getAttribute('src') ? media.find(x => x.id === chillCurId) : null;
+  const nowEl = document.getElementById('chNow');
+  if (cur) {
+    const d = chillAudio.duration || 0;
+    nowEl.innerHTML = `<div class="chill-row" id="chNowRow">
+      <div class="thumb sq" data-thumb="${cur.id}" style="${artStyle(cur.title)}"><span>♪</span></div>
+      <div class="chill-row-main"><div class="chill-row-title">${esc(cur.title)}</div>
+        <div class="chill-row-sub">${esc(artistOf(cur))} · ${chillAudio.paused ? 'Paused' : 'Playing'}</div>${bar(d ? chillAudio.currentTime / d * 100 : 0, 'chNpBar')}</div>
+      <button type="button" class="ch-pp" id="chNowPP" title="Play / pause">${svgI(chillAudio.paused ? IC.play : IC.pause, 28)}</button></div>`;
+    document.getElementById('chNowRow').onclick = (e) => { if (!e.target.closest('#chNowPP')) openNowPlaying(1); };
+    document.getElementById('chNowPP').onclick = togglePlay;
+  } else nowEl.innerHTML = '<div class="empty">Nothing playing — pick a song in Music</div>';
+
+  // Continue Reading
+  const reading = series.map(m => ({ m, pr: (store.chillProgress || {})[m.id] })).filter(x => x.pr && mangaChapters(x.m)[x.pr.ci])
+    .sort((a, b) => (b.pr.t || 0) - (a.pr.t || 0)).slice(0, 3);
+  const rEl = document.getElementById('chReading');
+  rEl.innerHTML = reading.length ? reading.map(({ m, pr }) => {
+    const ch = mangaChapters(m)[pr.ci], n = (ch.pages || []).length || 1;
+    return thumbRow(m, m.title, `${ch.name} · page ${Math.min(n, pr.page + 1)} of ${n}`, bar((pr.page + 1) / n * 100), `data-read="${m.id}"`);
+  }).join('') : `<div class="empty">${series.length ? 'Open a series in Read — it will wait for you here' : 'No manga yet'}</div>`;
+  rEl.querySelectorAll('[data-read]').forEach(r => { r.onclick = () => openManga(r.dataset.read); });
+
+  // Continue Watching
+  const watching = videos.filter(resumable).sort((a, b) => (b.seen || 0) - (a.seen || 0)).slice(0, 3);
+  const wEl = document.getElementById('chWatching');
+  wEl.innerHTML = watching.length ? watching.map(v => thumbRow(v, v.title, `${fmtT(v.pos)} of ${fmtT(v.dur)}`, bar(v.pos / v.dur * 100), `data-watch2="${v.id}"`)).join('')
+    : `<div class="empty">${videos.length ? 'Videos you pause part-way show up here' : 'No videos yet'}</div>`;
+  wEl.querySelectorAll('[data-watch2]').forEach(r => { r.onclick = () => openVideo(r.dataset.watch2); });
+
+  // Favourites
+  const favs = music.filter(m => m.fav).slice(0, 4);
+  const fEl = document.getElementById('chFavs');
+  fEl.innerHTML = favs.length ? favs.map(m => thumbRow(m, m.title, artistOf(m), '', `data-fav="${m.id}"`)).join('')
+    : '<div class="empty">Tap ♡ in the music player to add favourites</div>';
+  fEl.querySelectorAll('[data-fav]').forEach(r => { r.onclick = () => playTrackById(r.dataset.fav); });
+
+  // Recently Added
   const items = [
-    ...store.chillMedia.map(m => ({ id: m.id, title: m.title, type: m.type, ts: m.dateAdded || 0 })),
-    ...store.chillStories.map(s => ({ id: s.id, title: s.title, type: 'story', ts: s.ts || 0 })),
-  ].sort((a,b) => b.ts - a.ts).slice(0, 8);
-  const ICON = { music: '♪', video: '▶', manga: '📖', story: '✎' };
-  el.innerHTML = items.length ? items.map(it => `
-    <div class="row">
-      <span class="dot" style="background:${COLORS[3]}"></span>
-      <div class="row-main"><div class="row-title">${ICON[it.type]||''} ${esc(it.title)}</div></div>
-      <span class="row-meta">${it.ts ? ago(it.ts) : ''}</span>
-    </div>`).join('') : '<div class="empty">Nothing imported yet</div>';
+    ...media.map(m => ({ id: m.id, title: m.title, type: m.type, ts: m.dateAdded || 0, sub: m.type === 'music' ? artistOf(m) : m.type === 'manga' ? mangaSub(m) : 'Video' })),
+    ...stories.map(s => ({ id: s.id, title: s.title, type: 'story', ts: s.ts || 0, sub: 'Story' })),
+  ].sort((a, b) => b.ts - a.ts).slice(0, 10);
+  const rc = document.getElementById('chillRecent');
+  rc.innerHTML = items.length ? `<div class="cstrip">${items.map(it => `
+    <div class="cstrip-item" data-ct="${it.type}" data-cid="${it.id}">
+      <div class="thumb cs" ${it.type !== 'story' ? `data-thumb="${it.id}"` : ''} style="${artStyle(it.title)}"><span>${{ music: '♪', video: '', manga: '📖', story: '✎' }[it.type]}</span></div>
+      <div class="cs-t">${esc(it.title)}</div><div class="cs-s">${esc(it.sub)}${it.ts ? ' · ' + ago(it.ts) : ''}</div>
+    </div>`).join('')}</div>` : '<div class="empty">Nothing imported yet</div>';
+  rc.querySelectorAll('[data-ct]').forEach(el => {
+    el.onclick = () => { const t = el.dataset.ct, id = el.dataset.cid;
+      if (t === 'music') playTrackById(id); else if (t === 'video') openVideo(id); else if (t === 'manga') openManga(id); else showStoryDetail(id); };
+  });
+  hydrateThumbs(document.getElementById('view-chome'));
 }
 
 function closeDialog() {
