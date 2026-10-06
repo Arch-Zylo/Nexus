@@ -1692,3 +1692,11 @@ a { color: inherit; text-decoration: none; }
 .set-row.static { cursor: default; }
 .set-row.static:hover { background: none; }
 .tos-version { text-align: center; font-size: 12px; opacity: 0.65; margin: 2px 0 6px; }
+
+/* player icons are SVG now */
+.vp-ui button, .mini-player-controls button { display: inline-flex; align-items: center; justify-content: center; }
+.vp-mid { gap: 28px; }
+.vp-mid .vp-big { background: rgba(255,255,255,0.2); }
+.chill-row-icon { display: inline-flex; align-items: center; }
+
+.vp.rot .vp-ui { padding: 14px 26px; }

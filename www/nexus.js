@@ -212,15 +212,18 @@ const APP_VERSION = '1.4.6', APP_CHANNEL = 'beta', APP_VERSION_LABEL = 'v1.4.6 (
 /* Android Back: step back through screens (closing sheets / players first) instead of leaving the app.
    Every screen change and every full-screen layer adds a history entry; Back removes the newest one. */
 const ovStack = [];
-let ignorePops = 0, pendingPush = [], ignoreTimer = null;
+let ignorePops = 0, pendingPush = [], ignoreTimer = null, useHist = true;
+const navStack = [{ go: 'home', mode: 'regular' }];   // screens visited (used when the native Back listener is active)
 let navCur = { go: 'home', mode: 'regular' }, navRestoring = false;
 try { history.replaceState({ nexusNav: navCur }, ''); } catch {}
 function histPush(st) {
+  if (!useHist) return;
   if (ignorePops > 0) { pendingPush.push(st); return; }
   try { history.pushState(st, ''); } catch {}
 }
 function histFlush() { ignorePops = 0; clearTimeout(ignoreTimer); const q = pendingPush; pendingPush = []; q.forEach(histPush); }
 function histBack() {
+  if (!useHist) return;
   ignorePops++; clearTimeout(ignoreTimer); ignoreTimer = setTimeout(histFlush, 700);
   try { history.back(); } catch { histFlush(); }
 }
@@ -243,6 +246,31 @@ function navRestore(n) {
   } finally { navRestoring = false; }
   navCur = { go: n.go, mode: n.mode };
 }
+/* One step of "Back": close the newest layer, else return to the previous screen. false = nothing left (we're at the root). */
+function goBackOnce() {
+  const f = ovStack.pop();
+  if (f) { f(); histBack(); return true; }
+  if (navStack.length > 1) { navStack.pop(); navRestore(navStack[navStack.length - 1]); return true; }
+  return false;
+}
+/* Android: take over the hardware Back button through Capacitor's App plugin, so Back never depends on WebView history */
+let exitArmed = 0, nativeBackReady = false;
+function initNativeBack() {
+  if (nativeBackReady) return;
+  const AppP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (!AppP || typeof AppP.addListener !== 'function' || !isNativeApp()) return;
+  nativeBackReady = true; useHist = false;
+  try {
+    const r = AppP.addListener('backButton', () => {
+      try { if (goBackOnce()) return; } catch (e) { console.warn('Nexus: back failed', e); }
+      const now = Date.now();
+      if (now - exitArmed < 2200) { try { AppP.exitApp(); } catch {} return; }
+      exitArmed = now; toast('Press back again to exit', 'info', 2000);
+    });
+    if (r && r.catch) r.catch(() => { useHist = true; nativeBackReady = false; });
+  } catch (e) { useHist = true; nativeBackReady = false; }
+}
+initNativeBack(); window.addEventListener('load', initNativeBack);
 window.addEventListener('popstate', (e) => {
   if (ignorePops > 0) { ignorePops--; if (!ignorePops) histFlush(); return; }
   const f = ovStack.pop(); if (f) { f(); return; }
@@ -1113,7 +1141,7 @@ document.querySelectorAll('.rail-btn').forEach(btn => {
     if (v === 'import') setImportMode(importMode);
     if (!navRestoring) {
       const cur = { go: v, mode: store.mode };
-      if (cur.go !== navCur.go || cur.mode !== navCur.mode) { navCur = cur; histPush({ nexusNav: cur }); }
+      if (cur.go !== navCur.go || cur.mode !== navCur.mode) { navCur = cur; navStack.push(cur); if (navStack.length > 60) navStack.shift(); histPush({ nexusNav: cur }); }
     }
   };
 });
@@ -2777,8 +2805,15 @@ const IC = {
   prev: '<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>',
   next: '<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>',
   pause: '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>',
-  play: '<path d="M8 5v14l11-7z"/>'
+  play: '<path d="M8 5v14l11-7z"/>',
+  close: '<path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>',
+  fs: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>',
+  fsOff: '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>',
+  back10: '<path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/><text x="12" y="16.2" text-anchor="middle" font-size="7.5" font-weight="700" font-family="sans-serif" fill="currentColor">10</text>',
+  fwd10: '<g transform="translate(24 0) scale(-1 1)"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></g><text x="12" y="16.2" text-anchor="middle" font-size="7.5" font-weight="700" font-family="sans-serif" fill="currentColor">10</text>'
 };
+[['mpPrev', 'prev', 22], ['mpNext', 'next', 22], ['mpPlay', 'play', 22], ['vpClose', 'close', 24], ['vpBack', 'back10', 34], ['vpFwd', 'fwd10', 34], ['vpPlay', 'pause', 38], ['vpFs', 'fs', 24]]
+  .forEach(([i, k, s]) => { const e = document.getElementById(i); if (e) e.innerHTML = svgI(IC[k], s); });
 [['npShare', 'share', 26], ['npMore', 'more', 26], ['npShuffle', 'shuffle', 26], ['npPrev', 'prev', 38], ['npNext', 'next', 38]]
   .forEach(([i, k, s]) => { const e = $c(i); if (e) e.innerHTML = svgI(IC[k], s); });
 const artistOf = (m) => m.artist || 'Unknown artist';
@@ -2795,7 +2830,7 @@ function drawMusic() {
         <div class="chill-row-title">${esc(m.title)}</div>
         <div class="chill-row-sub">${m.missing ? 'File unavailable' : esc(artistOf(m))}${m.lyrics ? ' · ♫' : ''}</div>
       </div>
-      <span class="chill-row-icon">${i === chillQueueIndex && !chillAudio.paused ? '♪' : '▶'}</span>
+      <span class="chill-row-icon">${i === chillQueueIndex && !chillAudio.paused ? '♪' : svgI(IC.play, 18)}</span>
     </div>`).join('') : '<div class="empty">No music imported yet — go to Import</div>';
   el.querySelectorAll('[data-play]').forEach(row => {
     row.addEventListener('click', async () => { await playChillTrack(Number(row.dataset.play)); openNowPlaying(1); });
@@ -2913,7 +2948,7 @@ document.querySelectorAll('#npDots i').forEach((d, k) => d.addEventListener('cli
 
 function syncPlayUi() {
   const p = !chillAudio.paused;
-  $c('mpPlay').textContent = p ? '⏸' : '▶';
+  $c('mpPlay').innerHTML = svgI(p ? IC.pause : IC.play, 22);
   $c('npPlay').innerHTML = svgI(p ? IC.pause : IC.play, 46);
   $c('npRing')?.classList.toggle('paused', !p); $c('npOrbit')?.classList.toggle('paused', !p);
   $c('mpSub').textContent = chillAudio.src ? (p ? 'Playing' : 'Paused') : 'Not playing';
@@ -3078,7 +3113,7 @@ function drawWatch() {
   const items = store.chillMedia.filter(m => m.type === 'video').sort((a,b) => (b.dateAdded||0)-(a.dateAdded||0));
   el.innerHTML = items.length ? items.map(m => `
     <div class="chill-tile vt" data-watch="${m.id}">
-      <div class="thumb wide" data-thumb="${m.id}" style="${artStyle(m.title)}"><span class="play">▶</span><span class="dur">${m.duration ? fmtT(m.duration) : ''}</span></div>
+      <div class="thumb wide" data-thumb="${m.id}" style="${artStyle(m.title)}"><span class="play">${svgI(IC.play, 18)}</span><span class="dur">${m.duration ? fmtT(m.duration) : ''}</span></div>
       <div class="chill-tile-title">${esc(m.title)}</div>
       <div class="chill-tile-sub">${m.missing ? 'File unavailable' : fileSize(m.size)}</div>
     </div>`).join('') : '<div class="empty">No videos imported yet — go to Import</div>';
@@ -3100,6 +3135,7 @@ async function openVideo(mid) {
   chillAudio.pause();
   if (vidUrl) URL.revokeObjectURL(vidUrl);
   vidUrl = URL.createObjectURL(blob);
+  vpV.onloadedmetadata = () => { if (vpV.videoWidth > vpV.videoHeight && !vpFsOn) vpEnterFs(); };   // landscape video -> landscape player
   vpV.src = vidUrl; vpV.playbackRate = 1; $c('vpSpeed').textContent = '1×';
   $c('vpTitle').textContent = m.title;
   $c('vidPlayer').hidden = false; ovOpen(closeVideo);
@@ -3124,24 +3160,31 @@ $c('vpSpeed')?.addEventListener('click', () => {
    refuses to rotate, turn the player 90° with CSS so it is still landscape. */
 let vpFsOn = false;
 function vpApplyRot() { $c('vidPlayer').classList.toggle('rot', vpFsOn && window.innerHeight > window.innerWidth); }
-async function vpEnterFs() {
+const vpTimeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
+async function vpLockLandscape() {
+  const so = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ScreenOrientation;   // Android: real rotation
+  try { if (so && so.lock) { await Promise.race([so.lock({ orientation: 'landscape' }), vpTimeout(800)]); return; } } catch {}
+  try { await Promise.race([$c('vidPlayer').requestFullscreen?.(), vpTimeout(500)]); document.documentElement.dataset.fsApi = document.fullscreenElement ? '1' : ''; } catch {}
+  try { await Promise.race([screen.orientation?.lock?.('landscape'), vpTimeout(500)]); } catch {}
+}
+function vpEnterFs() {
   vpFsOn = true;
-  try { await $c('vidPlayer').requestFullscreen?.(); document.documentElement.dataset.fsApi = document.fullscreenElement ? '1' : ''; } catch {}
-  try { await screen.orientation?.lock?.('landscape'); } catch {}
-  vpApplyRot(); setTimeout(vpApplyRot, 350);
-  $c('vpFs').textContent = '⤢';
+  $c('vpFs').innerHTML = svgI(IC.fsOff, 24);
+  vpApplyRot();                                   // turn it sideways straight away if the phone is still upright
+  vpLockLandscape().finally(() => { vpApplyRot(); setTimeout(vpApplyRot, 400); });
 }
 function vpExitFs() {
   vpFsOn = false;
+  try { const so = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.ScreenOrientation; if (so && so.unlock) so.unlock(); } catch {}
   try { screen.orientation?.unlock?.(); } catch {}
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-  vpApplyRot(); $c('vpFs').textContent = '⛶';
+  vpApplyRot(); $c('vpFs').innerHTML = svgI(IC.fs, 24);
 }
 $c('vpFs')?.addEventListener('click', () => { if (vpFsOn) vpExitFs(); else vpEnterFs(); });
 window.addEventListener('resize', vpApplyRot);
 document.addEventListener('fullscreenchange', () => { if (vpFsOn && !document.fullscreenElement && !$c('vidPlayer').hidden && document.documentElement.dataset.fsApi) vpExitFs(); });
-vpV?.addEventListener('play', () => { $c('vpPlay').textContent = '⏸'; vpShowUi(); });
-vpV?.addEventListener('pause', () => { $c('vpPlay').textContent = '▶'; vpShowUi(); });
+vpV?.addEventListener('play', () => { $c('vpPlay').innerHTML = svgI(IC.pause, 38); vpShowUi(); });
+vpV?.addEventListener('pause', () => { $c('vpPlay').innerHTML = svgI(IC.play, 38); vpShowUi(); });
 vpV?.addEventListener('timeupdate', () => {
   const d = vpV.duration || 0;
   if (!vpSeeking) $c('vpSeek').value = d ? (vpV.currentTime / d) * 1000 : 0;
