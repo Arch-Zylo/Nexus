@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nexus — Student OS</title>
+<link rel="stylesheet" href="nexus.css">
+</head>
+<body>
+<canvas id="circuitBg" aria-hidden="true"></canvas>
+<canvas id="starryBg" aria-hidden="true"></canvas>
+<canvas id="dragonBg" aria-hidden="true"></canvas>
+<div id="tosGate" class="tos-gate" hidden>
+  <div class="tos-card">
+    <img src="assets/nexus-icon.png" alt="" class="tos-logo">
+    <h1>Terms &amp; Conditions</h1>
+    <p class="tos-version" id="tosVersion">Nexus v1.4.6 (beta)</p>
+    <p class="tos-intro">Please read this before using Nexus.</p>
+    <div class="tos-body">
+      <h2>1. What Nexus is</h2>
+      <p>Nexus is a student planner with an optional Chill Mode for music, video and manga. It is developed by Arch-Zylo, runs on your device, and is provided as-is for personal use.</p>
+      <h2>2. Beta software</h2>
+      <p>This is a beta release. Features can change, behave unexpectedly or be removed, and bugs can cause data loss. Do not rely on Nexus as the only copy of anything important.</p>
+      <h2>3. Your data stays on this device</h2>
+      <p>Classes, tasks, notes, people, wallet, events, passwords, settings and Chill Mode files are stored on this device only. There is no account and no cloud sync, and Nexus does not upload your data anywhere. Nexus works fully offline: it does not connect to the internet or contact any server. Uninstalling the app, clearing app data or switching phones can erase everything unless you export a backup.</p>
+      <h2>4. Chill Mode files</h2>
+      <p>Music, videos, manga pages, lyrics and other files you import are copied into Nexus's storage on this device and use space on it. You choose what to import and you are responsible for it: make sure you have the right to use it, that it is lawful, and that it is suitable for anyone who can use your device. Nexus does not supply, scan or moderate content. Song details (title, artist, cover, embedded lyrics) are read from the file on your device only. If you use Share, the file is handed to the app you choose.</p>
+      <h2>5. Passwords are not encrypted</h2>
+      <p>The Password Manager stores entries on this device in readable form, and they are included in backup files the same way. Do not store passwords here if others can access this phone. Keep the device locked.</p>
+      <h2>6. Backups and wiping</h2>
+      <p>Export in Settings creates a backup file. If you have Chill Mode files, it is a .nexusbackup file that includes them and can be large (up to about 4 GB). Backup files are not encrypted and contain everything, including passwords, so keep them somewhere safe. Importing a backup replaces your current data. Wipe All Data permanently deletes everything on this device, including Chill Mode files and the on-device backup copy, and cannot be undone. We cannot recover data you did not export.</p>
+      <h2>7. Notifications</h2>
+      <p>Reminders only work if you grant notification permission. Delivery is not guaranteed when the app is closed or the system restricts background activity. In a web browser, reminders only work while Nexus is open.</p>
+      <h2>8. Accuracy</h2>
+      <p>You are responsible for the information you enter (schedules, amounts, due dates). Nexus does not replace official school records or financial advice.</p>
+      <h2>9. No warranty</h2>
+      <p>Nexus is provided &ldquo;as is&rdquo;, without warranties of any kind. To the extent the law allows, the developer is not liable for lost data, missed reminders or any other damage from using it.</p>
+      <h2>10. Changes</h2>
+      <p>These terms are updated with new versions. When they change you will be asked to accept them again; continuing to use Nexus means you accept the current terms.</p>
+    </div>
+    <label class="tos-check">
+      <input type="checkbox" id="tosAgree">
+      <span>I have read and agree to the Terms &amp; Conditions.</span>
+    </label>
+    <button class="btn btn-gold" id="tosAccept" disabled>Continue</button>
+    <p class="tos-foot">You can read these again anytime in Settings.</p>
+  </div>
+</div>
+<div class="app">
+  <!-- Side rail -->
+  <aside class="rail">
+    <div class="logo"><img src="assets/nexus-icon.png" alt="Nexus"></div>
+    <nav class="rail-nav">
+      <button class="rail-btn active" data-go="home" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="timetable" title="Timetable">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </button>
+      <button class="rail-btn" data-go="tasks" title="Tasks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </button>
+      <button class="rail-btn" data-go="people" title="People">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </button>
+      <button class="rail-btn" data-go="notes" title="Notes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+      </button>
+      <button class="rail-btn" data-go="wallet" title="Wallet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4h-4z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="config" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </nav>
+    <div class="rail-footer">
+      <button class="theme-toggle" id="modeBtn_themeBtn" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+      <button class="theme-toggle" id="themeBtn" title="Toggle theme">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Side rail — Chill Mode -->
+  <aside class="rail rail-chill">
+    <div class="logo"><img src="assets/nexus-icon.png" alt="Nexus"></div>
+    <nav class="rail-nav">
+      <button class="rail-btn" data-go="chome" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="music" title="Music">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </button>
+      <button class="rail-btn" data-go="watch" title="Watch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="rail-btn" data-go="read" title="Read">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 5.5A2.5 2.5 0 014.5 3H11v16H4.5A2.5 2.5 0 002 16.5v-11z"/><path d="M22 5.5A2.5 2.5 0 0019.5 3H13v16h6.5a2.5 2.5 0 012.5 2.5v-16z"/></svg>
+      </button>
+      <button class="rail-btn" data-go="import" title="Import">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
+      </button>
+      <button class="rail-btn" data-go="config" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </nav>
+    <div class="rail-footer">
+      <button class="theme-toggle" id="modeBtn_themeBtnChill" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+      <button class="theme-toggle" id="themeBtnChill" title="Toggle theme">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Stage -->
+  <div class="stage">
+    <header class="top">
+      <div class="brand-top">
+        <span class="brand-mark"><img src="assets/nexus-icon.png" alt=""></span>
+        <span class="brand-name">Nexus</span>
+      </div>
+      <div class="top-meta">
+        <span class="pulse"></span>
+        <span id="liveClock"></span>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <section class="view on" id="view-home">
+        <div class="hero">
+          <h1 id="greet">Good evening</h1>
+          <p id="greetSub"></p>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-head"><h2>Today's Classes</h2></div>
+            <div class="panel-body" id="todayClasses"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Due Soon</h2></div>
+            <div class="panel-body" id="dueSoon"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Upcoming Events</h2></div>
+            <div class="panel-body" id="upcomingEvents"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Coming Up</h2></div>
+            <div class="panel-body" id="comingUp"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Recent</h2></div>
+            <div class="panel-body" id="recentLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TIMETABLE / EVENTS -->
+      <section class="view" id="view-timetable">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1 id="ttPageTitle">Timetable</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-tt-mode="classes">Classes</button>
+              <button type="button" class="tt-mode" data-tt-mode="events">Events</button>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btnAddClass">+ Class</button>
+          <button class="btn btn-gold" id="btnAddEvent" hidden>+ Event</button>
+        </div>
+
+        <!-- Classes mode -->
+        <div id="classesMode">
+          <div class="sheet" id="sheetClass">
+            <input type="hidden" id="c-edit-id" value="">
+            <div class="fields">
+              <div class="field"><label>Subject</label><input id="c-sub" placeholder="e.g. Algorithms" required></div>
+              <div class="field"><label>Room</label><input id="c-room" placeholder="Optional"></div>
+              <div class="field"><label>Instructor</label><input id="c-inst" placeholder="Optional"></div>
+              <div class="field"><label>Day</label>
+                <select id="c-day">
+                  <option value="1">Monday</option><option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option><option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                </select>
+              </div>
+              <div class="field"><label>Start</label><input type="time" id="c-start" value="09:00"></div>
+              <div class="field"><label>End</label><input type="time" id="c-end" value="10:30"></div>
+              <div class="field wide"><label>Color</label>
+                <div class="color-pick-row">
+                  <input type="color" id="c-color" value="#f5c15a" title="Any color">
+                  <div class="chips" id="c-chips"></div>
+                </div>
+              </div>
+              <div class="field-check"><input type="checkbox" id="c-lab"><label for="c-lab">Lab session</label></div>
+              <div class="field-check"><input type="checkbox" id="c-notify" checked><label for="c-notify">Remind me before this class</label></div>
+              <div class="field wide"><label>Reminder time</label>
+                <select id="c-notify-lead">
+                  <option value="">Use default (set in Settings)</option>
+                  <option value="5">5 minutes before</option>
+                  <option value="10">10 minutes before</option>
+                  <option value="15">15 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="saveClass">Save</button>
+              <button class="btn btn-ghost" id="cancelClass">Cancel</button>
+            </div>
+          </div>
+          <div class="board-wrap"><div class="board" id="board"></div></div>
+        </div>
+
+        <!-- Events mode -->
+        <div id="eventsMode" hidden>
+          <div class="sheet" id="sheetEvent">
+            <input type="hidden" id="e-edit-id" value="">
+            <div class="fields">
+              <div class="field wide"><label>Title</label><input id="e-title" placeholder="e.g. Club meeting, Exam review"></div>
+              <div class="field"><label>Date</label><input type="date" id="e-date"></div>
+              <div class="field"><label>Time</label><input type="time" id="e-time" value="15:00"></div>
+              <div class="field"><label>Location</label><input id="e-loc" placeholder="Optional"></div>
+              <div class="field wide"><label>Notes</label><input id="e-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="saveEvent">Save</button>
+              <button class="btn btn-ghost" id="cancelEvent">Cancel</button>
+            </div>
+          </div>
+          <div class="card-stack" id="eventList"></div>
+        </div>
+      </section>
+
+      <!-- TASKS -->
+      <section class="view" id="view-tasks">
+        <div class="hero">
+          <h1>Tasks</h1>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddTask">+ Task</button>
+        </div>
+        <div class="sheet" id="sheetTask">
+          <input type="hidden" id="t-edit-id" value="">
+          <div class="fields">
+            <div class="field"><label>Title</label><input id="t-title" placeholder="e.g. Portfolio site"></div>
+            <div class="field"><label>Subject</label><input id="t-sub" list="subList" placeholder="Optional"></div>
+            <div class="field"><label>Due</label><input type="date" id="t-due"></div>
+            <div class="field wide"><label>Notes</label><textarea id="t-notes" placeholder="Details…"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveTask">Save</button>
+            <button class="btn btn-ghost" id="cancelTask">Cancel</button>
+            <button class="btn btn-ghost" id="deleteTask" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+        <datalist id="subList"></datalist>
+        <div class="card-stack" id="taskList"></div>
+      </section>
+
+      <!-- PEOPLE -->
+      <section class="view" id="view-people">
+        <div class="hero" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <h1>People</h1>
+          <div class="sort-links" id="peopleSort">
+            <button type="button" class="sort-link on" data-sort="first">Name</button>
+            <button type="button" class="sort-link" data-sort="last">Last name</button>
+            <button type="button" class="sort-link" data-sort="bday">Birthday</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddPerson">+ Person</button>
+        </div>
+        <div class="sheet" id="sheetPerson">
+          <input type="hidden" id="p-edit-id" value="">
+          <div class="fields">
+            <div class="field"><label>First name</label><input id="p-first" placeholder="Niel"></div>
+            <div class="field"><label>Last name</label><input id="p-last" placeholder="Read"></div>
+            <div class="field"><label>Birthday</label><input type="date" id="p-bday"></div>
+            <div class="field wide"><label>Notes</label><textarea id="p-notes" placeholder="Sits front, strong in math…"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="savePerson">Save</button>
+            <button class="btn btn-ghost" id="cancelPerson">Cancel</button>
+            <button class="btn btn-ghost" id="deletePerson" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+        <div class="card-stack" id="peopleList"></div>
+      </section>
+
+      <!-- NOTES -->
+      <section class="view" id="view-notes">
+        <div id="noteList">
+          <div class="hero"><h1>Notes</h1></div>
+          <div class="actions"><button class="btn btn-gold" id="btnAddNote">+ Note</button></div>
+          <div class="mosaic" id="noteGrid"></div>
+        </div>
+        <div class="note-editor" id="noteEditor" hidden>
+          <input type="hidden" id="n-edit-id" value="">
+          <div class="ne-bar">
+            <button class="btn btn-ghost" id="noteBack" type="button">‹ Back</button>
+            <span class="ne-status" id="noteStatus"></span>
+            <button class="btn btn-ghost" id="deleteNote" type="button" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+          <input class="ne-title" id="n-title" placeholder="Title" autocomplete="off">
+          <textarea class="ne-body" id="n-body" placeholder="Note"></textarea>
+        </div>
+      </section>
+
+      <!-- WALLET -->
+      <section class="view" id="view-wallet">
+        <div class="money-hero">
+          <h1 style="font-size:1.4rem;font-weight:700;">Wallet</h1>
+          <div>
+            <div style="font-size:0.7rem;color:var(--mist);text-transform:uppercase;letter-spacing:0.05em;">Total</div>
+            <div class="money-total" id="walletTotal">$0.00</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddAcc">+ Account</button>
+          <button class="btn btn-ghost" id="btnTransfer" title="Move money between accounts">⇄ Transfer</button>
+        </div>
+        <div class="sheet" id="sheetAcc">
+          <div class="fields">
+            <div class="field"><label>Name</label><input id="a-name" placeholder="Wallet / GCash"></div>
+            <div class="field"><label>Type</label>
+              <select id="a-type">
+                <option value="cash">Cash / On Hand</option>
+                <option value="save">Savings</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="field"><label>Starting balance</label><input type="number" id="a-start" step="0.01" placeholder="0.00"></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveAcc">Add</button>
+            <button class="btn btn-ghost" id="cancelAcc">Cancel</button>
+          </div>
+        </div>
+        <div class="sheet" id="sheetTransfer">
+          <div class="fields">
+            <div class="field"><label>From</label><select id="xf-from"></select></div>
+            <div class="field"><label>To</label><select id="xf-to"></select></div>
+            <div class="field"><label>Amount</label><input type="number" id="xf-amt" step="0.01" min="0" placeholder="0.00"></div>
+            <div class="field wide"><label>Note (optional)</label><input id="xf-note" placeholder="e.g. Move to checking"></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveTransfer">Transfer</button>
+            <button class="btn btn-ghost" id="cancelTransfer">Cancel</button>
+          </div>
+        </div>
+        <div id="accList"></div>
+        <div id="loansSection" style="margin-top:24px;display:none;">
+          <h2 style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--fog);margin-bottom:12px;">Loaned out</h2>
+          <div id="loansList"></div>
+        </div>
+      </section>
+
+      <!-- CONFIG -->
+      <section class="view" id="view-config">
+        <div class="hero">
+          <h1>Settings</h1>
+        </div>
+
+        <div id="settingsMain">
+        <p class="set-group-label">Appearance</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="theme">
+            <span class="set-label">Theme</span>
+            <span class="set-value" id="themeValue">Night</span>
+          </button>
+          <button type="button" class="set-row" data-set="style">
+            <span class="set-label">Style</span>
+            <span class="set-value" id="styleValue">Soft</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Profile</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="name">
+            <span class="set-label">Your name</span>
+            <span class="set-value" id="nameValue">Not set</span>
+          </button>
+          <button type="button" class="set-row" data-set="school">
+            <span class="set-label">School</span>
+            <span class="set-value" id="schoolValue">Not set</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Security</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="passwords">
+            <span class="set-label">Password Manager</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Preferences</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="currency">
+            <span class="set-label">Currency</span>
+            <span class="set-value" id="currencyValue">$</span>
+          </button>
+          <button type="button" class="set-row" data-set="timefmt">
+            <span class="set-label">Time format</span>
+            <span class="set-value" id="timefmtValue">12-hour</span>
+          </button>
+          <button type="button" class="set-row" data-set="notify">
+            <span class="set-label">Due-task reminders</span>
+            <span class="set-value" id="notifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotify">
+            <span class="set-label">Timetable reminders</span>
+            <span class="set-value" id="classNotifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotifylead">
+            <span class="set-label">Default reminder time</span>
+            <span class="set-value" id="classNotifyLeadValue">10 min before</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Spending</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="spendperiod">
+            <span class="set-label">Reset spending chart</span>
+            <span class="set-value" id="spendPeriodValue">Never</span>
+          </button>
+          <button type="button" class="set-row" data-set="spendresetnow">
+            <span class="set-label">Reset chart now</span>
+            <span class="set-chevron">›</span>
+          </button>
+          <button type="button" class="set-row" data-set="spendcats">
+            <span class="set-label">Spending categories</span>
+            <span class="set-value" id="spendCatsValue">6</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Tools</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="mode">
+            <span class="set-label">Mode</span>
+            <span class="set-value" id="modeValue">Regular</span>
+          </button>
+          <div class="set-row set-row-split">
+            <span class="set-label">Backup</span>
+            <span class="set-actions">
+              <button type="button" class="set-action" data-set="export">Export</button>
+              <span class="set-sep">·</span>
+              <button type="button" class="set-action" data-set="import">Import</button>
+            </span>
+          </div>
+          <button type="button" class="set-row" data-set="clearlog">
+            <span class="set-label">Clear activity log</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Danger zone</p>
+        <div class="set-list">
+          <button type="button" class="set-row set-danger" data-set="wipe">
+            <span class="set-label">Wipe all data</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">About</p>
+        <div class="set-list">
+          <div class="set-row set-row-static">
+            <span class="set-label">App</span>
+            <span class="set-value">Nexus Student OS</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Version</span>
+            <span class="set-value" id="appVersionValue">v1.4.6 (beta)</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Storage</span>
+            <span class="set-value" id="storageValue">—</span>
+          </div>
+          <button type="button" class="set-row" data-set="terms">
+            <span class="set-label">Terms &amp; Conditions</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <input type="file" id="importFile" accept=".json,.nexusbackup,.zip,application/json,application/zip" hidden>
+        <p id="dataMsg" style="font-size:0.8rem;margin-top:12px;color:var(--mint);"></p>
+        </div><!-- /settingsMain -->
+
+        <!-- Password panel (shown when Password Manager is tapped) -->
+        <div id="passPanel" class="set-panel" hidden>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <button type="button" class="sort-link" id="passBack">‹ Back</button>
+            <button class="btn btn-gold" id="btnAddPass" style="padding:8px 14px;font-size:0.82rem;">+ Add</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
+          <div class="sheet" id="sheetPass">
+            <input type="hidden" id="pw-edit-id" value="">
+            <div class="fields" style="grid-template-columns:1fr;">
+              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
+              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
+              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
+              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="savePass">Save</button>
+              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
+              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+            </div>
+          </div>
+          <div id="passList"></div>
+        </div>
+
+        <!-- Mode panel (shown when Mode is tapped) -->
+        <div id="modePanel" class="set-panel" hidden>
+          <div style="margin-bottom:12px;">
+            <button type="button" class="sort-link" id="modeBack">‹ Back</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:16px;">Switch how Nexus looks and what it does. You can switch back anytime — nothing is deleted.</p>
+          <div class="mode-pick">
+            <button type="button" class="mode-card" data-mode-pick="regular">
+              <div class="mode-card-title">Regular</div>
+              <div class="mode-card-desc">Classes, tasks, wallet, notes, people — the full student planner.</div>
+            </button>
+            <button type="button" class="mode-card" data-mode-pick="chill">
+              <div class="mode-card-title">Chill</div>
+              <div class="mode-card-desc">Music, videos, manga and stories you've imported — for downtime.</div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHILL HOME -->
+      <section class="view" id="view-chome">
+        <div class="hero">
+          <h1 id="chGreet">Chill</h1>
+          <p id="chGreetSub">Your downtime stuff — music, shows, and reading.</p>
+        </div>
+        <div class="metrics" id="chMetrics"></div>
+        <div class="chill-quick-grid">
+          <button type="button" class="chill-quick-tile" data-go-chill="music">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <span>Music</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="watch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
+            <span>Watch</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="read">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 5.5A2.5 2.5 0 014.5 3H11v16H4.5A2.5 2.5 0 002 16.5v-11z"/><path d="M22 5.5A2.5 2.5 0 0019.5 3H13v16h6.5a2.5 2.5 0 012.5 2.5v-16z"/></svg>
+            <span>Read</span>
+          </button>
+          <button type="button" class="chill-quick-tile" data-go-chill="import">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
+            <span>Import</span>
+          </button>
+        </div>
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-head"><h2>Now Playing</h2></div>
+            <div class="panel-body" id="chNow"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Continue Reading</h2></div>
+            <div class="panel-body" id="chReading"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Continue Watching</h2></div>
+            <div class="panel-body" id="chWatching"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Favourites</h2></div>
+            <div class="panel-body" id="chFavs"></div>
+          </div>
+          <div class="panel span2">
+            <div class="panel-head"><h2>Recently Added</h2></div>
+            <div class="panel-body" id="chillRecent"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MUSIC -->
+      <section class="view" id="view-music">
+        <div class="hero"><h1>Music</h1></div>
+        <div id="musicList" class="chill-list"></div>
+        <div class="mini-player" id="miniPlayer" hidden>
+          <div class="mp-prog" id="mpProg"></div>
+          <div class="mp-thumb" id="mpThumb">♪</div>
+          <div class="mini-player-info" id="mpOpen" title="Open player">
+            <div class="mini-player-title" id="mpTitle">—</div>
+            <div class="mini-player-sub" id="mpSub">Not playing</div>
+          </div>
+          <div class="mini-player-controls">
+            <button type="button" id="mpPrev" title="Previous"></button>
+            <button type="button" id="mpPlay" title="Play/Pause"></button>
+            <button type="button" id="mpNext" title="Next"></button>
+          </div>
+        </div>
+        <audio id="chillAudio"></audio>
+      </section>
+
+      <!-- WATCH -->
+      <section class="view" id="view-watch">
+        <div class="hero"><h1>Watch</h1></div>
+        <div id="watchGrid" class="chill-grid"></div>
+      </section>
+
+      <!-- READ -->
+      <section class="view" id="view-read">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Read</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-read-tab="manga">Manga</button>
+              <button type="button" class="tt-mode" data-read-tab="stories">Stories</button>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btnAddStory" hidden>+ Story</button>
+        </div>
+        <div id="mangaMode">
+          <div id="mangaGrid" class="chill-grid"></div>
+        </div>
+        <div id="storiesMode" hidden>
+          <div id="storyList" class="chill-list"></div>
+        </div>
+        <div class="sheet" id="sheetStory">
+          <input type="hidden" id="st-edit-id" value="">
+          <div class="fields">
+            <div class="field wide"><label>Title</label><input id="st-title" placeholder="Title"></div>
+            <div class="field wide"><label>Story</label><textarea id="st-body" placeholder="Write something…" style="min-height:180px;"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveStory">Save</button>
+            <button class="btn btn-ghost" id="cancelStory">Cancel</button>
+            <button class="btn btn-ghost" id="deleteStory" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPORT -->
+      <section class="view" id="view-import">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Import</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-import-tab="music">Music</button>
+              <button type="button" class="tt-mode" data-import-tab="video">Video</button>
+              <button type="button" class="tt-mode" data-import-tab="manga">Manga</button>
+            </div>
+          </div>
+        </div>
+        <div id="importMusicMode">
+          <label class="btn btn-gold import-picker">+ Add Music<input type="file" id="importMusicFile" accept="audio/*" multiple hidden></label>
+          <div id="importMusicList" class="chill-list"></div>
+        </div>
+        <div id="importVideoMode" hidden>
+          <label class="btn btn-gold import-picker">+ Add Video<input type="file" id="importVideoFile" accept="video/*" multiple hidden></label>
+          <div id="importVideoList" class="chill-list"></div>
+        </div>
+        <div id="importMangaMode" hidden>
+          <div class="manga-import">
+            <button type="button" class="mg-plus" id="mgPlus" title="Add a series or a chapter"><span>＋</span>Add series or chapter</button>
+            <div class="mg-hint" id="mgStatus"></div>
+          </div>
+          <div id="importMangaList" class="chill-list"></div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device. Settings → Export packs them into a .nexusbackup file so you can restore them later.</p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="backdrop" id="backdrop">
+  <div class="dialog">
+    <div class="dialog-head">
+      <h2 id="dlgTitle">History</h2>
+      <button class="btn-icon" id="dlgClose">✕</button>
+    </div>
+    <div class="dialog-body" id="dlgBody"></div>
+  </div>
+</div>
+<div class="np" id="nowPlaying" hidden>
+  <div class="np-top-area">
+    <div class="np-bg" id="npBg"></div><div class="np-shade"></div>
+    <div class="np-head">
+      <div class="np-ht"><div class="np-title" id="npTitle">—</div><div class="np-artist" id="npArtist"></div></div>
+      <button type="button" class="np-ic" id="npShare" title="Share"></button>
+      <button type="button" class="np-ic" id="npMore" title="More"></button>
+    </div>
+    <div class="np-pager" id="npPager">
+      <div class="np-page"><div class="np-queue" id="npQueue"></div></div>
+      <div class="np-page np-pg-art"><div class="np-art-wrap"><div class="np-ring" id="npRing"></div><div class="np-orbit" id="npOrbit"></div><div class="np-art" id="npArt">♪</div></div><canvas class="np-viz" id="npViz"></canvas></div>
+      <div class="np-page">
+        <div class="np-lyr-scroll" id="npLyrScroll"><div id="npLyricsView"><div id="npLyricsBody"></div><button type="button" class="btn btn-ghost np-lyr-btn" id="npLyricsEditBtn">Add lyrics</button></div></div>
+        <div class="np-lyr-edit" id="npLyricsEdit" hidden>
+          <textarea id="npLyricsText" placeholder="Paste or type lyrics here…&#10;Tip: lines like [01:23.45] text will highlight in time with the song."></textarea>
+          <div class="np-lyr-actions"><button type="button" class="btn btn-gold" id="npLyricsSave">Save</button><button type="button" class="btn btn-ghost" id="npLyricsCancel">Cancel</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="np-foot"><button type="button" id="npFav" title="Favourite"></button><div class="np-dots" id="npDots"><i></i><i class="on"></i><i></i></div><button type="button" id="npShuffle" title="Shuffle"></button></div>
+  </div>
+  <div class="np-ctrl">
+    <div class="np-btns"><button type="button" id="npPrev" title="Previous"></button><button type="button" id="npPlay" title="Play/Pause"></button><button type="button" id="npNext" title="Next"></button></div>
+    <div class="np-seekrow"><span id="npCur">0:00</span><input type="range" id="npSeek" class="np-seek" min="0" max="1000" value="0"><span id="npDur">0:00</span></div>
+  </div>
+</div>
+<div class="mg-reader" id="mgReader" hidden>
+  <div class="mg-bar mg-top"><button type="button" id="mgClose">✕</button><div class="mg-tt"><div id="mgTitle"></div><small id="mgChName"></small></div><button type="button" id="mgMode"></button><button type="button" id="mgChBtn">☰</button></div>
+  <div class="mg-stage v" id="mgStage"></div>
+  <div class="mg-bar mg-bot"><button type="button" id="mgPrevCh">‹ Ch</button><span id="mgPg">0 / 0</span><button type="button" id="mgNextCh">Ch ›</button></div>
+  <div class="mg-chapters" id="mgChapters" hidden></div>
+</div>
+<div class="mg-series" id="mgSeries" hidden>
+  <div class="mg-sbar"><button type="button" class="btn-icon" id="mgSeriesBack" title="Back">‹</button><div class="mg-tt"><div id="mgSeriesTitle"></div><small id="mgSeriesSub"></small></div><button type="button" class="btn-icon" id="mgSeriesDel" title="Delete series">🗑</button></div>
+  <div class="mg-sbody"><button type="button" class="btn btn-gold" id="mgAddCh">＋ Add chapter</button><div id="mgSeriesList" class="chill-list"></div></div>
+</div>
+<div class="mg-sheet-back" id="mgSheetBack" hidden><div class="mg-sheet" id="mgSheet"></div></div>
+<div class="vp" id="vidPlayer" hidden>
+  <video id="vpVideo" playsinline></video>
+  <div class="vp-ui" id="vpUi">
+    <div class="vp-top"><button type="button" id="vpClose" title="Close"></button><span id="vpTitle"></span></div>
+    <div class="vp-mid"><button type="button" id="vpBack" title="Back 10 seconds"></button><button type="button" id="vpPlay" class="vp-big" title="Play/Pause"></button><button type="button" id="vpFwd" title="Forward 10 seconds"></button></div>
+    <div class="vp-bot"><span id="vpCur">0:00</span><input type="range" id="vpSeek" min="0" max="1000" value="0"><span id="vpDur">0:00</span><button type="button" id="vpSpeed">1×</button><button type="button" id="vpFs" title="Fullscreen"></button></div>
+  </div>
+</div>
+<script src="circuit-bg.js"></script>
+<script src="starry-bg.js"></script>
+<script src="dragon-bg.js"></script>
+<script src="fx.js"></script>
+<script src="nexus.js"></script>
+</body>
+</html>
