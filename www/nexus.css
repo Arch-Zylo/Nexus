@@ -1832,3 +1832,44 @@ a { color: inherit; text-decoration: none; }
   }
   @keyframes nxModeSwap { from { opacity: 0.55; filter: saturate(0.7); } to { opacity: 1; filter: none; } }
 }
+
+
+/* =====================================================================
+   Update 13 — manga reading transitions
+   ===================================================================== */
+.mg-stage { position: relative; }
+.mg-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 4; background: rgba(255,255,255,0.08); pointer-events: none; }
+.mg-prog i { display: block; height: 100%; background: var(--gold); transform-origin: left; transform: scaleX(0); }
+.mg-prog.rtl i { transform-origin: right; }
+.mg-reader.closing, .mg-chapters.closing { pointer-events: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* paged modes: the next page slides in from the reading direction */
+  .mg-one.in-r { animation: mgInR 0.28s var(--ease) both; }
+  .mg-one.in-l { animation: mgInL 0.28s var(--ease) both; }
+  .mg-one.in-f { animation: nxFade 0.25s ease-out both; }
+  /* chapter / mode change: old pages fade down, new ones rise in */
+  .mg-stage.swap-out { opacity: 0; transform: translateY(-1.5%); transition: opacity 0.14s ease-in, transform 0.14s ease-in; }
+  .mg-stage.swap-in { animation: mgSwapIn 0.34s var(--ease); }
+  /* scroll mode: pages fade in as they decode, with a soft placeholder pulse while loading */
+  .mg-pg img { opacity: 0; transition: opacity 0.35s ease; }
+  .mg-pg.ok img { opacity: 1; }
+  .mg-pg:not(.ok) { animation: mgPulse 1.4s ease-in-out infinite; }
+  /* bars fade as well as slide */
+  .mg-bar { transition: transform 0.28s var(--ease), opacity 0.22s; }
+  .mg-reader.off .mg-bar { opacity: 0; pointer-events: none; }
+  .mg-reader.off .mg-prog { opacity: 0.55; }
+  .mg-prog { transition: opacity 0.25s; }
+  .mg-prog i { transition: transform 0.3s var(--ease); }
+  #mgPg.bump { animation: nxPop 0.3s var(--ease); display: inline-block; }
+  /* chapter list + closing the reader */
+  .mg-chapters:not([hidden]) { animation: nxSheetUp 0.3s var(--ease); }
+  .mg-chapters.closing { animation: nxSheetDown 0.19s ease-in forwards; }
+  .mg-reader.closing { animation: mgReaderOut 0.2s ease-in forwards; }
+
+  @keyframes mgInR { from { opacity: 0; transform: translateX(9%); } to { opacity: 1; transform: none; } }
+  @keyframes mgInL { from { opacity: 0; transform: translateX(-9%); } to { opacity: 1; transform: none; } }
+  @keyframes mgSwapIn { from { opacity: 0; transform: translateY(3%); } to { opacity: 1; transform: none; } }
+  @keyframes mgPulse { 0%, 100% { background-color: #0a0a0a; } 50% { background-color: #181818; } }
+  @keyframes mgReaderOut { to { opacity: 0; transform: scale(0.97); } }
+}

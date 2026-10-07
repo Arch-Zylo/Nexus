@@ -3292,7 +3292,9 @@ function drawManga() {
 }
 
 /* ---- Manga reader: vertical scroll / paged LTR / paged RTL, resume, chapters ---- */
-let rd = null, rdSave = null;
+let rd = null, rdSave = null, rdCloseT = null, rdChT = null;
+const rdMotion = () => !(window.nxReduceMotion && nxReduceMotion());
+const rdSleep = (ms) => new Promise(r => setTimeout(r, ms));
 const rdMode = () => localStorage.getItem('nexus_mg_mode') || 'vertical';
 const MODE_LABEL = { vertical: '⇵ Scroll', ltr: '→ LTR', rtl: '← RTL' };
 function rdRelease() {
@@ -3307,19 +3309,24 @@ async function openManga(mid) {
   const pr = (store.chillProgress || {})[mid];
   rd = { m, chs, ci: 0, page: 0, pages: [], urls: [], token: 0 };
   $c('mgTitle').textContent = m.title;
+  clearTimeout(rdCloseT); clearTimeout(rdChT); $c('mgReader').classList.remove('closing'); $c('mgChapters').classList.remove('closing');
+  $c('mgStage').replaceChildren(); $c('mgStage').classList.remove('swap-out', 'swap-in');   // no stale pages from the last series
   $c('mgReader').hidden = false; ovOpen(closeReader); $c('mgReader').classList.remove('off'); $c('mgChapters').hidden = true;
   $c('mgMode').textContent = MODE_LABEL[rdMode()];
   await loadChapter(pr ? Math.min(pr.ci, chs.length - 1) : 0, pr ? pr.page : 0);
 }
 async function loadChapter(ci, start = 0) {
+  const st0 = $c('mgStage');
+  if (st0.childElementCount && rdMotion()) { st0.classList.add('swap-out'); await rdSleep(150); if (!rd) return; }   // old pages fade away first
   rdRelease();
-  rd.ci = ci; rd.page = start; rd.token++;
+  rd.ci = ci; rd.page = start; rd.token++; rd.pre = new Map();
   const ch = rd.chs[ci], tk = rd.token;
   rd.pages = [...(ch.pages || [])].sort((a, b) => a.order - b.order);
   rd.mode = rdMode();
   $c('mgChName').textContent = ch.name;
   const st = $c('mgStage'); st.innerHTML = ''; st.scrollTop = 0;
   st.className = 'mg-stage ' + (rd.mode === 'vertical' ? 'v' : 'p');
+  if (rdMotion()) { st.classList.add('swap-in'); st.addEventListener('animationend', () => st.classList.remove('swap-in'), { once: true }); }
   if (rd.mode === 'vertical') buildVertical(tk, start); else await showPage(start);
   updatePg(); saveProg();
 }
@@ -3348,21 +3355,45 @@ function loadWrap(w, tk) {
     if (!rd || tk !== rd.token) return;
     if (!blob) { w.classList.add('ok'); w.innerHTML = '<div class="mg-miss">Page unavailable</div>'; return; }
     const u = URL.createObjectURL(blob); rd.urls.push(u);
-    const img = new Image(); img.src = u; img.onload = () => w.classList.add('ok'); w.appendChild(img);
+    const img = new Image(); img.src = u; img.onload = img.onerror = () => w.classList.add('ok'); w.appendChild(img);
   })();
   return w._p;
 }
-async function showPage(i) {
+async function showPage(i, dir = 0) {   // dir: +1 forward / -1 back / 0 = first show (fades in)
   if (!rd.pages.length) return;
   i = Math.max(0, Math.min(rd.pages.length - 1, i)); rd.page = i;
-  const tk = rd.token, blob = await chillGetBlob(rd.pages[i].id).catch(() => null);
-  if (tk !== rd.token || !blob) return;
+  const tk = rd.token, sq = rd.seq = (rd.seq || 0) + 1;
+  let blob = rd.pre && rd.pre.get(i);
+  if (!blob) blob = await chillGetBlob(rd.pages[i].id).catch(() => null);
+  if (!rd || tk !== rd.token || sq !== rd.seq || !blob) return;
+  const url = URL.createObjectURL(blob), img = new Image();
+  img.className = 'mg-one'; img.src = url;
+  try { await img.decode(); } catch {}                       // wait until it can paint, so the slide-in never flashes
+  if (!rd || tk !== rd.token || sq !== rd.seq) { URL.revokeObjectURL(url); return; }   // a newer tap won
   if (rd.cur) { URL.revokeObjectURL(rd.cur); rd.urls = rd.urls.filter(x => x !== rd.cur); }
-  rd.cur = URL.createObjectURL(blob); rd.urls.push(rd.cur);
-  $c('mgStage').innerHTML = `<img class="mg-one" src="${rd.cur}">`;
-  updatePg(); saveProg();
+  rd.cur = url; rd.urls.push(url);
+  if (rdMotion()) {
+    // the new page enters from the side you are reading towards (reversed for right-to-left)
+    img.classList.add(!dir ? 'in-f' : ((dir > 0) !== (rd.mode === 'rtl') ? 'in-r' : 'in-l'));
+    img.addEventListener('animationend', () => img.classList.remove('in-f', 'in-r', 'in-l'), { once: true });
+  }
+  $c('mgStage').replaceChildren(img);
+  updatePg(); saveProg(); rdPrefetch(i);
 }
-function updatePg() { $c('mgPg').textContent = rd.pages.length ? `${rd.page + 1} / ${rd.pages.length}` : '0 / 0'; }
+function rdPrefetch(i) {                                     // keep the neighbouring pages ready so turns feel instant
+  const pre = rd.pre || (rd.pre = new Map()), tk = rd.token;
+  for (const k of [...pre.keys()]) if (Math.abs(k - i) > 1) pre.delete(k);
+  [i + 1, i - 1].forEach(k => {
+    if (k < 0 || k >= rd.pages.length || pre.has(k)) return;
+    chillGetBlob(rd.pages[k].id).then(b => { if (b && rd && tk === rd.token) pre.set(k, b); }).catch(() => {});
+  });
+}
+function updatePg() {
+  const el = $c('mgPg'), t = rd.pages.length ? `${rd.page + 1} / ${rd.pages.length}` : '0 / 0';
+  if (el.textContent !== t) { el.textContent = t; if (rdMotion()) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } }
+  const pr = $c('mgProg'), fill = $c('mgProgFill');
+  if (pr && fill) { pr.classList.toggle('rtl', rd.mode === 'rtl'); fill.style.transform = `scaleX(${rd.pages.length ? (rd.page + 1) / rd.pages.length : 0})`; }
+}
 function saveProg() {
   clearTimeout(rdSave);
   rdSave = setTimeout(() => { if (!rd) return; (store.chillProgress ||= {})[rd.m.id] = { ci: rd.ci, page: rd.page, t: Date.now() }; save(); }, 400);
@@ -3373,7 +3404,7 @@ async function goCh(d, toLast) {
 }
 function pageStep(d) { // d: +1 forward / -1 back
   const n = rd.page + d;
-  if (n >= rd.pages.length) goCh(1); else if (n < 0) goCh(-1, true); else showPage(n);
+  if (n >= rd.pages.length) goCh(1); else if (n < 0) goCh(-1, true); else showPage(n, d);
 }
 $c('mgStage')?.addEventListener('scroll', () => {
   if (!rd || rd.mode !== 'vertical') return;
@@ -3387,7 +3418,11 @@ $c('mgStage')?.addEventListener('click', (e) => {
   if (rd.mode !== 'vertical' && (x < 0.3 || x > 0.7)) { const fwd = x > 0.7; pageStep((rd.mode === 'rtl' ? !fwd : fwd) ? 1 : -1); return; }
   $c('mgReader').classList.toggle('off');
 });
-function closeReader() { saveProg(); clearTimeout(rdSave); if (rd) { (store.chillProgress ||= {})[rd.m.id] = { ci: rd.ci, page: rd.page, t: Date.now() }; save(); } rdRelease(); rd = null; $c('mgReader').hidden = true; drawManga(); }
+function closeReader() { saveProg(); clearTimeout(rdSave); if (rd) { (store.chillProgress ||= {})[rd.m.id] = { ci: rd.ci, page: rd.page, t: Date.now() }; save(); } rdRelease(); rd = null;
+  const r = $c('mgReader');
+  if (!rdMotion()) r.hidden = true;
+  else { r.classList.add('closing'); clearTimeout(rdCloseT); rdCloseT = setTimeout(() => { r.hidden = true; r.classList.remove('closing'); }, 210); }
+  drawManga(); }
 $c('mgClose')?.addEventListener('click', () => ovClose(closeReader));
 $c('mgPrevCh')?.addEventListener('click', () => goCh(-1));
 $c('mgNextCh')?.addEventListener('click', () => goCh(1));
@@ -3400,9 +3435,14 @@ $c('mgChBtn')?.addEventListener('click', () => {
   const box = $c('mgChapters'); if (!rd) return;
   box.innerHTML = '<div class="mg-ch-head">Chapters <button type="button" id="mgChX" class="btn-icon">✕</button></div>' + rd.chs.map((c, i) =>
     `<div class="chill-row${i === rd.ci ? ' playing' : ''}" data-ch="${i}"><div class="chill-row-main"><div class="chill-row-title">${esc(c.name)}</div><div class="chill-row-sub">${(c.pages || []).length} pages</div></div></div>`).join('');
-  box.hidden = false;
-  $c('mgChX').onclick = () => { box.hidden = true; };
-  box.querySelectorAll('[data-ch]').forEach(r => r.onclick = () => { box.hidden = true; loadChapter(Number(r.dataset.ch), 0); });
+  clearTimeout(rdChT); box.classList.remove('closing'); box.hidden = false;
+  const chHide = () => {
+    if (box.hidden) return;
+    if (!rdMotion()) { box.hidden = true; return; }
+    box.classList.add('closing'); clearTimeout(rdChT); rdChT = setTimeout(() => { box.hidden = true; box.classList.remove('closing'); }, 190);
+  };
+  $c('mgChX').onclick = chHide;
+  box.querySelectorAll('[data-ch]').forEach(r => r.onclick = () => { chHide(); loadChapter(Number(r.dataset.ch), 0); });
 });
 
 function drawStories() {

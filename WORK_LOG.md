@@ -1,5 +1,13 @@
 # Nexus — Work Log
 
+## Update 13 — Manga reading transitions
+- [x] **Paged modes (LTR / RTL):** the next page slides + fades in from the direction you read towards (reversed for RTL). The image is decoded before it appears, so there is no flash, and the neighbouring pages are pre-loaded so turns feel instant. Fast taps no longer show pages out of order
+- [x] **Chapter or reading-mode change:** old pages fade down, new ones rise in
+- [x] **Scroll mode:** pages fade in as they load, with a soft pulsing placeholder while loading
+- [x] **Page counter** pops when it changes, and a thin gold **reading-progress line** runs along the bottom (fills from the right in RTL)
+- [x] Top/bottom bars now fade as well as slide; the chapter list slides up and down; the reader zooms out when closed
+- [x] Off when "reduce motion" is on. Syntax-checked only (no browser available): please test page turns in all 3 modes, switching chapter, and closing the reader quickly after opening
+
 ## Update 12 — Import progress + motion
 - [x] **Progress card** (new `www/fx.js`, `window.NxProgress`) slides in at the top for every import: music/video (by file size, "2 of 5 · name"), manga (by page, plus a "Reading archive" step for .cbz/.zip), full `.nexusbackup` restore (media file n of N, then "Finishing up") and plain .json backup import. Shows a percentage, shimmering bar, turns green on success and red on failure; indeterminate sliding bar while the total isn't known
 - [x] **Press feedback** on every button, row, card, tile and player control; inputs get a soft focus glow
