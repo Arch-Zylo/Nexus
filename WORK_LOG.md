@@ -1,5 +1,14 @@
 # Nexus — Work Log
 
+## Update 15 — v1.5.0 (beta): hamburger Settings, no-deadline tasks
+- [x] **Settings moved to a hamburger (☰) button in the top bar** and removed from the bottom/side rail (both Regular and Chill). Tapping it opens Settings and the icon turns into an X; tapping again returns to the screen you came from. Screen switching now lives in `Shell.navigate()` (used by the rail, the hamburger, the Back button and the Mode row)
+- [x] **Tasks can have no deadline**: new "No deadline" checkbox in the task form (date picker greys out). Order: unfinished tasks by soonest date, then unfinished no-deadline tasks, then finished tasks. No-deadline tasks show a "No deadline" tag, never get reminders, and are left out of Home → Due Soon (they still count in Open Tasks). Existing tasks are unaffected
+- [x] Version bumped to **v1.5.0 (beta)** (constants, Terms header, Settings row, package.json `1.5.0-beta`, README)
+- [x] Fix: hidden buttons were still visible (the Delete button showed on a new task form)
+- [x] Tests: e2e updated for the hamburger; new checks for the toggle and for task ordering / no-deadline (43/43 pass in headless Chromium, phone viewport)
+
+**Not verified:** on a real Android device (hardware Back with the hamburger, notifications)
+
 ## Update 14 — Object-oriented restructure
 - [x] **`www/nexus.js` (3,894 lines of global functions + variables) is now 49 small ES-module files**, one class each, under `www/js/` (`core`, `storage`, `media`, `ui`, `features/regular`, `features/chill`, `backgrounds`). `fx.js` became `ProgressCard`, `ListAnimator` and `Motion`; `nexus.css` moved to `www/css/`. See README → Architecture
 - [x] `App` is the composition root; every service and feature view extends `Component` and talks to the others as `this.app.<name>` instead of through globals. Shared data is `this.state`

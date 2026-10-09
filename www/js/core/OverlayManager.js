@@ -74,7 +74,8 @@ export class OverlayManager extends Component {
     this.navRestoring = true;
     try {
       if (n.mode !== this.state.mode) this.app.mode.applyMode(n.mode);
-      document.querySelector(`${n.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)'} .rail-btn[data-go="${n.go}"]`)?.click();
+      if (n.go === 'config') this.app.shell.navigate('config');   // Settings has no rail button any more
+      else document.querySelector(`${n.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)'} .rail-btn[data-go="${n.go}"]`)?.click();
     } finally { this.navRestoring = false; }
     this.navCur = { go: n.go, mode: n.mode };
   }

@@ -23,9 +23,9 @@ export const BASE_SPEND_CATS = [
   { key: 'other', label: 'Other', color: '#00b358' },
 ];
 export const CAT_PALETTE = ['#e84393', '#00cec9', '#fdcb6e', '#6c5ce7', '#fab1a0', '#55efc4', '#74b9ff', '#e17055'];
-export const APP_VERSION = '1.4.6';
+export const APP_VERSION = '1.5.0';
 export const APP_CHANNEL = 'beta';
-export const APP_VERSION_LABEL = 'v1.4.6 (beta)';
+export const APP_VERSION_LABEL = 'v1.5.0 (beta)';
 /* Theme — dark themes only (no light mode) */
 export const THEMES = [
   { id: 'night', label: 'Night' },

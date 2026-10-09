@@ -14,7 +14,7 @@
   <div class="tos-card">
     <img src="assets/nexus-icon.png" alt="" class="tos-logo">
     <h1>Terms &amp; Conditions</h1>
-    <p class="tos-version" id="tosVersion">Nexus v1.4.6 (beta)</p>
+    <p class="tos-version" id="tosVersion">Nexus v1.5.0 (beta)</p>
     <p class="tos-intro">Please read this before using Nexus.</p>
     <div class="tos-body">
       <h2>1. What Nexus is</h2>
@@ -69,9 +69,6 @@
       <button class="rail-btn" data-go="wallet" title="Wallet">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4h4v-4h-4z"/></svg>
       </button>
-      <button class="rail-btn" data-go="config" title="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
     </nav>
     <div class="rail-footer">
       <button class="theme-toggle" id="modeBtn_themeBtn" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
@@ -100,9 +97,6 @@
       <button class="rail-btn" data-go="import" title="Import">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
       </button>
-      <button class="rail-btn" data-go="config" title="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
     </nav>
     <div class="rail-footer">
       <button class="theme-toggle" id="modeBtn_themeBtnChill" title="Switch mode" data-mode-toggle><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
@@ -115,6 +109,7 @@
   <!-- Stage -->
   <div class="stage">
     <header class="top">
+      <button class="menu-btn" id="menuBtn" type="button" title="Settings" aria-label="Open settings" aria-expanded="false"><span></span><span></span><span></span></button>
       <div class="brand-top">
         <span class="brand-mark"><img src="assets/nexus-icon.png" alt=""></span>
         <span class="brand-name">Nexus</span>
@@ -250,6 +245,7 @@
             <div class="field"><label>Title</label><input id="t-title" placeholder="e.g. Portfolio site"></div>
             <div class="field"><label>Subject</label><input id="t-sub" list="subList" placeholder="Optional"></div>
             <div class="field"><label>Due</label><input type="date" id="t-due"></div>
+            <div class="field-check"><input type="checkbox" id="t-nodue"><label for="t-nodue">No deadline</label></div>
             <div class="field wide"><label>Notes</label><textarea id="t-notes" placeholder="Details…"></textarea></div>
           </div>
           <div class="form-foot">
@@ -475,7 +471,7 @@
           </div>
           <div class="set-row set-row-static">
             <span class="set-label">Version</span>
-            <span class="set-value" id="appVersionValue">v1.4.6 (beta)</span>
+            <span class="set-value" id="appVersionValue">v1.5.0 (beta)</span>
           </div>
           <div class="set-row set-row-static">
             <span class="set-label">Storage</span>

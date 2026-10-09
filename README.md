@@ -1,6 +1,6 @@
 # Nexus — Student OS
 
-**Version:** v1.4.6 (beta)
+**Version:** v1.5.0 (beta)
 
 Nexus is an all-in-one student organizer that keeps your school life in one
 place: your class timetable, tasks, people, notes and money. It is built for
@@ -32,11 +32,11 @@ as an installable Android app.
 | --- | --- |
 | **Home** | Daily snapshot: classes, due tasks, events, birthdays, activity and spending chart |
 | **Timetable** | Weekly class schedule with per-class reminders |
-| **Tasks** | To-dos with due dates |
+| **Tasks** | To-dos with due dates or no deadline. Unfinished tasks are listed first (soonest date first, then no-deadline tasks), finished ones last |
 | **People** | Contacts with birthdays and ages |
 | **Notes** | Quick notes |
 | **Wallet** | Multiple accounts, income and expenses, loans, transfers, spending by category |
-| **Settings** | Themes and styles, name and school, currency, 12/24-hour time, reminders, spending options, backup (export/import) and password manager |
+| **Settings** (☰ button in the top bar; tap again to go back) | Themes and styles, name and school, currency, 12/24-hour time, reminders, spending options, backup (export/import) and password manager |
 
 ## What's new
 

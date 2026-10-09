@@ -12,7 +12,7 @@ export class HomeView extends Component {
     const totalCash = cashAccs.reduce((s,a) => s + Util.bal(a), 0);
     const entries = cashAccs.reduce((s,a) => s + (a.tx||[]).length, 0);
     const open = this.state.tasks.filter(t => !t.done).length;
-    const up = this.state.tasks.filter(t => !t.done && Util.daysOut(t.due) >= 0).length;
+    const up = this.state.tasks.filter(t => !t.done && t.due && Util.daysOut(t.due) >= 0).length;
 
     // Classes left today: today's classes that haven't started yet — an
     // ongoing class (already started, not yet ended) no longer counts as
@@ -62,7 +62,7 @@ export class HomeView extends Component {
       : '<div class="empty">No classes today</div>';
 
     // Due soon
-    const due = [...this.state.tasks].filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);
+    const due = [...this.state.tasks].filter(t=>!t.done && t.due).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);   // no-deadline tasks aren't "due soon"
     Dom.byId('dueSoon').innerHTML = due.length
       ? due.map(t => {
           const d = Util.daysOut(t.due);

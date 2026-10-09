@@ -20,6 +20,7 @@ async function step(name, fn) {
   try { const r = await fn(); results.push(['PASS', name, r === undefined ? '' : String(r)]); }
   catch (e) { results.push(['FAIL', name, String(e.message).split('\n').slice(0,3).join(' / ').slice(0, 260)]); }
 }
+const openSettings = async () => { if (!(await page.evaluate(() => document.getElementById('view-config').classList.contains('on')))) await page.click('#menuBtn'); await page.waitForTimeout(60); };
 const txt = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
 const expectText = async (sel, t, ms = 4000) => { await page.waitForFunction(([s, t]) => (document.querySelector(s)?.innerText || '').includes(t), [sel, t], { timeout: ms }); };
 const progWatcher = (key) => page.evaluate((k) => { window.__prog = window.__prog || {}; window.__prog[k] = []; const iv = setInterval(() => { const c = document.querySelector('.nx-prog.show'); if (c) window.__prog[k].push(c.querySelector('.nx-prog-label')?.textContent + '|' + c.querySelector('.nx-prog-pct')?.textContent); }, 40); setTimeout(() => clearInterval(iv), 15000); }, key);
@@ -29,17 +30,54 @@ if (process.env.COVER) await page.coverage.startJSCoverage({ resetOnNavigation: 
 await page.goto(url); await page.waitForTimeout(600);
 await step('boot + accept terms', async () => { await page.check('#tosAgree'); await page.click('#tosAccept'); await page.waitForTimeout(300); if (await page.locator('#tosGate').isVisible()) throw new Error('gate still visible'); });
 await step('regular nav views', async () => {
-  for (const go of ['home','timetable','tasks','people','notes','wallet','config']) {
+  for (const go of ['home','timetable','tasks','people','notes','wallet']) {
     await page.click(`.rail:not(.rail-chill) [data-go="${go}"]`); await page.waitForTimeout(120);
     if (!(await page.evaluate((g) => document.getElementById('view-' + g).classList.contains('on'), go))) throw new Error('view not shown: ' + go);
   } });
+await step('hamburger: opens Settings, X state, second tap returns to previous screen', async () => {
+  await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.waitForTimeout(100);
+  if (await page.locator('.rail [data-go="config"]').count()) throw new Error('settings still in the rail');
+  await page.click('#menuBtn'); await page.waitForTimeout(150);
+  if (!(await page.evaluate(() => document.getElementById('view-config').classList.contains('on')))) throw new Error('settings not shown');
+  if (!(await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active')))) throw new Error('hamburger not active');
+  await page.click('#menuBtn'); await page.waitForTimeout(150);
+  if (!(await page.evaluate(() => document.getElementById('view-tasks').classList.contains('on')))) throw new Error('did not return to Tasks');
+  if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger still active');
+  if (!(await page.evaluate(() => document.querySelector('.rail:not(.rail-chill) [data-go="tasks"]').classList.contains('active')))) throw new Error('Tasks rail button not re-highlighted');
+  await page.click('#menuBtn'); await page.waitForTimeout(100); await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.waitForTimeout(100);
+  if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger stuck active after tapping a rail button'); });
 await step('add task', async () => { await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#btnAddTask'); await page.fill('#t-title', 'Buy milk'); await page.click('#saveTask'); await expectText('#taskList', 'Buy milk'); });
+await step('tasks: no-deadline option + ordering (dated by date, then no-deadline, done last)', async () => {
+  await page.click('.rail:not(.rail-chill) [data-go="tasks"]');
+  const add = async (title, { due, none } = {}) => { await page.click('#btnAddTask'); await page.fill('#t-title', title);
+    if (none) await page.check('#t-nodue'); else if (due) await page.fill('#t-due', due);
+    await page.click('#saveTask'); await expectText('#taskList', title); };
+  await add('ND-first', { none: true }); await add('Late-dated', { due: '2099-12-31' }); await add('Soon-dated', { due: '2098-01-01' }); await add('ND-second', { none: true });
+  await page.click('#btnAddTask');
+  if (!(await page.evaluate(() => document.getElementById('t-due').disabled === false))) throw new Error('date should be enabled by default');
+  await page.check('#t-nodue');
+  if (!(await page.evaluate(() => document.getElementById('t-due').disabled))) throw new Error('date not disabled when No deadline ticked');
+  await page.click('#cancelTask');
+  const order = async () => page.evaluate(() => [...document.querySelectorAll('#taskList .card-title')].map(e => e.firstChild.textContent.trim()));
+  let o = await order(); const i = (t) => o.indexOf(t);
+  if (!(i('Soon-dated') < i('Late-dated') && i('Late-dated') < i('ND-first') && i('ND-first') < i('ND-second'))) throw new Error('bad order: ' + o.join(' | '));
+  const tag = await page.evaluate(() => [...document.querySelectorAll('#taskList .card')].find(c => c.innerText.includes('ND-first')).querySelector('.tag').innerText);
+  if (tag !== 'No deadline') throw new Error('tag was ' + tag);
+  await page.evaluate(() => [...document.querySelectorAll('#taskList .card')].find(c => c.innerText.includes('Soon-dated')).querySelector('[data-tog]').click()); await page.waitForTimeout(250);
+  o = await order(); if (!(i('Soon-dated') > i('ND-second'))) throw new Error('finished task not moved to the bottom: ' + o.join(' | '));
+  await page.evaluate(() => [...document.querySelectorAll('#taskList .card')].find(c => c.innerText.includes('ND-first')).click()); await page.click('#editTaskBtn');
+  if (!(await page.evaluate(() => document.getElementById('t-nodue').checked && document.getElementById('t-due').disabled))) throw new Error('edit form lost the no-deadline state');
+  await page.click('#cancelTask');
+  await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.waitForTimeout(150);
+  const due = await txt('#dueSoon'); if (due.includes('NaN') || due.includes('ND-first')) throw new Error('home Due Soon wrong: ' + due.replace(/\n/g, ' '));
+  for (const t of ['ND-first','ND-second','Late-dated','Soon-dated']) { await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.locator('#taskList').getByText(t).first().click(); await page.click('#delTaskBtn'); await page.waitForTimeout(200); }
+});
 await step('add person', async () => { await page.click('.rail:not(.rail-chill) [data-go="people"]'); await page.click('#btnAddPerson'); await page.fill('#p-first', 'Ada'); await page.click('#savePerson'); await expectText('#peopleList', 'Ada'); });
 await step('add note', async () => { await page.click('.rail:not(.rail-chill) [data-go="notes"]'); await page.click('#btnAddNote'); await page.fill('#n-title', 'Hello note'); await page.fill('#n-body', 'body'); await page.click('#noteBack'); await expectText('#noteGrid', 'Hello note'); });
 await step('add account', async () => { await page.click('.rail:not(.rail-chill) [data-go="wallet"]'); await page.click('#btnAddAcc'); await page.fill('#a-name', 'Cash'); await page.fill('#a-start', '100'); await page.click('#saveAcc'); await expectText('#accList', 'Cash'); });
 await step('add class', async () => { await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('#btnAddClass'); await page.fill('#c-sub', 'Math'); await page.fill('#c-start', '09:00'); await page.fill('#c-end', '10:00'); await page.click('#saveClass'); await expectText('#board', 'Math'); });
 await step('add event', async () => { await page.click('#btnAddEvent').catch(()=>{}); await page.click('[data-tt-tab="events"],#ttModeEvents').catch(()=>{}); return 'skipped-ui-unknown'; });
-await step('settings: theme row cycles', async () => { await page.click('.rail:not(.rail-chill) [data-go="config"]'); const before = await txt('#themeValue'); await page.click('.set-row[data-set="theme"]'); await page.waitForTimeout(200); const after = await txt('#themeValue'); if (before === after) throw new Error('theme unchanged'); return before + ' → ' + after; });
+await step('settings: theme row cycles', async () => { await openSettings(); const before = await txt('#themeValue'); await page.click('.set-row[data-set="theme"]'); await page.waitForTimeout(200); const after = await txt('#themeValue'); if (before === after) throw new Error('theme unchanged'); return before + ' → ' + after; });
 await step('events: add 2, open edit, delete one', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('[data-tt-mode="events"]');
   await page.click('#btnAddEvent'); await page.fill('#e-title', 'Exam'); await page.fill('#e-date', '2026-12-01'); await page.fill('#e-time', '10:00'); await page.click('#saveEvent'); await expectText('#eventList', 'Exam');
@@ -60,19 +98,19 @@ await step('task: detail + edit-open', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#btnAddTask'); await page.fill('#t-title', 'Detail task'); await page.click('#saveTask'); await expectText('#taskList', 'Detail task');
   await page.locator('#taskList').getByText('Detail task').first().click(); await page.click('#editTaskBtn'); await page.click('#cancelTask'); });
 await step('passwords: panel, add, detail, edit-open, delete', async () => {
-  await page.click('.rail:not(.rail-chill) [data-go="config"]'); await page.click('[data-set="passwords"]'); await page.click('#btnAddPass'); await page.fill('#pw-site', 'site.com'); await page.fill('#pw-user', 'me'); await page.fill('#pw-pass', 'secret'); await page.click('#savePass'); await expectText('#passList', 'site.com');
+  await openSettings(); await page.click('[data-set="passwords"]'); await page.click('#btnAddPass'); await page.fill('#pw-site', 'site.com'); await page.fill('#pw-user', 'me'); await page.fill('#pw-pass', 'secret'); await page.click('#savePass'); await expectText('#passList', 'site.com');
   await page.locator('#passList').getByText('site.com').first().click(); await page.click('#editPassBtn'); await page.click('#cancelPass');
   await page.locator('#passList').getByText('site.com').first().click(); await page.click('#delPassBtn'); await page.waitForTimeout(500);
   if ((await txt('#passList')).includes('site.com')) throw new Error('password still listed'); await page.click('#passBack'); });
 await step('spending: detail dialog + category manager', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.click('#metricSpend'); await page.waitForSelector('#backdrop.open .dialog'); await page.click('#dlgClose'); await page.waitForTimeout(300);
-  await page.click('.rail:not(.rail-chill) [data-go="config"]'); await page.click('[data-set="spendcats"]'); await page.waitForSelector('#spCatName'); await page.fill('#spCatName', 'Snacks'); await page.click('#spCatAdd'); await page.waitForTimeout(300);
+  await openSettings(); await page.click('[data-set="spendcats"]'); await page.waitForSelector('#spCatName'); await page.fill('#spCatName', 'Snacks'); await page.click('#spCatAdd'); await page.waitForTimeout(300);
   const ok = (await txt('.dialog')).includes('Snacks'); await page.click('#dlgClose'); if (!ok) throw new Error('category not added'); });
 await step('wallet: second account + transfer', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="wallet"]'); await page.click('#btnAddAcc'); await page.fill('#a-name', 'Bank'); await page.fill('#a-start', '50'); await page.click('#saveAcc'); await expectText('#accList', 'Bank');
   await page.click('#btnTransfer'); await page.selectOption('#xf-from', { index: 0 }); await page.selectOption('#xf-to', { index: 0 }); await page.fill('#xf-amt', '10'); await page.click('#saveTransfer'); await page.waitForTimeout(400); });
 await step('settings: every row responds', async () => {
-  await page.click('.rail:not(.rail-chill) [data-go="config"]');
+  await openSettings();
   for (const a of ['name','school','currency','timefmt','spendperiod','style','spendresetnow','clearlog','notify','classnotify','classnotifylead','theme']) { await page.click(`[data-set="${a}"]`); await page.waitForTimeout(120); }
   await page.click('[data-set="terms"]'); await page.waitForTimeout(300); const gate = await page.locator('#tosGate').isVisible();
   if (gate) { await page.goBack().catch(() => {}); await page.waitForTimeout(300); if (await page.locator('#tosGate').isVisible()) await page.click('#tosAccept').catch(() => {}); }
@@ -86,7 +124,7 @@ await step('row actions: task toggle, note open, wallet history, delete category
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#taskList [data-tog]'); await page.waitForTimeout(250); await page.click('#taskList [data-tog]'); await page.waitForTimeout(250);
   await page.click('.rail:not(.rail-chill) [data-go="notes"]'); await page.click('#noteGrid [data-nid]'); await page.waitForTimeout(250); await page.click('#noteBack'); await page.waitForTimeout(200);
   await page.click('.rail:not(.rail-chill) [data-go="wallet"]'); await page.evaluate(() => document.querySelector('#accList [data-hist]')?.click()); await page.waitForTimeout(300); await page.evaluate(() => document.getElementById('dlgClose')?.click()); await page.waitForTimeout(200);
-  await page.click('.rail:not(.rail-chill) [data-go="config"]'); await page.click('[data-set="spendcats"]'); await page.waitForTimeout(250);
+  await openSettings(); await page.click('[data-set="spendcats"]'); await page.waitForTimeout(250);
   await page.evaluate(() => document.querySelector('[data-delcat]')?.click()); await page.waitForTimeout(300); await page.evaluate(() => document.getElementById('dlgClose')?.click()); await page.waitForTimeout(200); });
 await step('delete task (row removal)', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#taskList >> text=Buy milk'); await page.waitForTimeout(200);
@@ -100,8 +138,8 @@ await step('dump state (regular)', async () => { if (process.env.DUMP) fs.writeF
 await step('mode toggle buttons (regular ⇄ chill)', async () => {
   await page.evaluate(() => document.getElementById('modeBtn_themeBtn').click()); await page.waitForTimeout(500); if (!(await page.locator('.rail-chill').isVisible())) throw new Error('did not switch to chill');
   await page.evaluate(() => document.getElementById('modeBtn_themeBtnChill').click()); await page.waitForTimeout(500); if (await page.locator('.rail-chill').isVisible()) throw new Error('did not switch back'); });
-await step('switch to Chill mode', async () => { await page.click('.rail:not(.rail-chill) [data-go="config"]'); await page.click('.set-row[data-set="mode"]'); await page.waitForTimeout(500); if (!(await page.locator('.rail-chill').isVisible())) throw new Error('chill rail not visible'); });
-await step('chill nav views', async () => { for (const go of ['chome','music','watch','read','import','config']) { await page.click(`.rail-chill [data-go="${go}"]`); await page.waitForTimeout(120); if (!(await page.evaluate((g) => document.getElementById('view-' + g).classList.contains('on'), go))) throw new Error('view not shown: ' + go); } });
+await step('switch to Chill mode', async () => { await openSettings(); await page.click('.set-row[data-set="mode"]'); await page.waitForTimeout(500); if (!(await page.locator('.rail-chill').isVisible())) throw new Error('chill rail not visible'); });
+await step('chill nav views', async () => { for (const go of ['chome','music','watch','read','import']) { await page.click(`.rail-chill [data-go="${go}"]`); await page.waitForTimeout(120); if (!(await page.evaluate((g) => document.getElementById('view-' + g).classList.contains('on'), go))) throw new Error('view not shown: ' + go); } });
 await step('import music (progress card + list)', async () => {
   await page.click('.rail-chill [data-go="import"]'); await progWatcher('music');
   await page.setInputFiles('#importMusicFile', [A('Song One.wav'), A('Song Two.wav')]);
@@ -216,7 +254,7 @@ await step('chill home tiles, prev track, chapter picker', async () => {
   await page.click('#mgChBtn'); await page.waitForTimeout(300); await page.evaluate(() => document.querySelectorAll('#mgChapters [data-ch]')[1]?.click()); await page.waitForTimeout(700);
   const name = await txt('#mgChName'); await page.click('#mgClose'); await page.waitForTimeout(400); return 'chapter now: ' + name; });
 await step('backup export (download)', async () => {
-  await page.click('.rail-chill [data-go="config"]'); const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('[data-set="export"]')]);
+  await openSettings(); const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('[data-set="export"]')]);
   const f = '/tmp/backup-' + Date.now() + path.extname(dl.suggestedFilename() || '.nexusbackup'); await dl.saveAs(f); globalThis.__bk = f; return dl.suggestedFilename() + ' ' + fs.statSync(f).size + 'B'; });
 await step('backup restore (progress card)', async () => {
   await progWatcher('restore'); await page.setInputFiles('#importFile', globalThis.__bk); await page.waitForTimeout(2500);
@@ -225,7 +263,7 @@ await step('backup restore (progress card)', async () => {
 await step('dump state (full)', async () => { if (process.env.DUMP) fs.writeFileSync(process.env.DUMP + '.full.json', JSON.stringify(await page.evaluate(() => ({ ...localStorage })))); });
 await step('wipe all data (3 confirmations) + app still boots', async () => {
   await page.reload(); await page.waitForTimeout(500);
-  await page.click('.rail:not(.rail-chill) [data-go="config"]'); await page.click('[data-set="wipe"]'); await page.waitForTimeout(1200);
+  await openSettings(); await page.click('[data-set="wipe"]'); await page.waitForTimeout(1200);
   const raw = await page.evaluate(() => localStorage.getItem('nexus-v1') || ''); if (raw.includes('Ada') || raw.includes('Test Manga')) throw new Error('data survived wipe');
   const media = await page.evaluate(() => new Promise((res) => { const r = indexedDB.databases ? indexedDB.databases() : Promise.resolve([]); r.then(async (dbs) => { let n = 0; for (const d of dbs) { await new Promise((ok) => { const q = indexedDB.open(d.name); q.onsuccess = () => { const db = q.result; try { const tx = db.transaction(db.objectStoreNames[0]); const c = tx.objectStore(db.objectStoreNames[0]).count(); c.onsuccess = () => { n += c.result; db.close(); ok(); }; } catch { db.close(); ok(); } }; q.onerror = ok; }); } res(n); }); }));
   return 'media blobs left=' + media; });

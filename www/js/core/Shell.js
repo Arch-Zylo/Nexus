@@ -15,28 +15,11 @@ export class Shell extends Component {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) this.tick(); });
     window.addEventListener('pageshow', this.tick);
     window.addEventListener('focus', this.tick);
-    /* Navigation */
+    /* Navigation: side/bottom rail buttons, plus the hamburger (Settings) in the top bar */
     document.querySelectorAll('.rail-btn').forEach(btn => {
-      btn.onclick = () => {
-        const ne = Dom.byId('noteEditor');
-        if (ne && !ne.hidden) { this.app.notes.closeNoteEditor(); this.app.overlays.release(this.app.notes.closeNoteEditor); }
-        this.app.passwords.hidePassPanel();
-        document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const v = btn.dataset.go;
-        document.querySelectorAll('.view').forEach(s => s.classList.remove('on'));
-        Dom.byId('view-'+v).classList.add('on');
-        if (v === 'timetable') this.app.timetable.setTtMode(this.app.timetable.ttMode);
-        if (v === 'wallet') this.app.wallet.drawWallet();
-        if (v === 'config') { this.app.settings.refreshSettingsUI(); this.app.passwords.hidePassPanel(); this.app.mode.hideModePanel(); }
-        if (v === 'chome') this.app.chillHome.drawChillHome();
-        if (v === 'music') this.app.music.drawMusic();
-        if (v === 'watch') this.app.video.drawWatch();
-        if (v === 'read') this.app.read.setReadMode(this.app.read.readMode);
-        if (v === 'import') this.app.importer.setImportMode(this.app.importer.importMode);
-        this.app.overlays.recordNav({ go: v, mode: this.state.mode });
-      };
+      btn.onclick = () => this.navigate(btn.dataset.go, btn);
     });
+    Dom.byId('menuBtn')?.addEventListener('click', this.toggleSettings);
     document.querySelectorAll('[data-go-chill]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
@@ -54,6 +37,38 @@ export class Shell extends Component {
     })();
     Dom.byId('appVersionValue') && (Dom.byId('appVersionValue').textContent = APP_VERSION_LABEL);
     Dom.byId('tosVersion') && (Dom.byId('tosVersion').textContent = 'Nexus ' + APP_VERSION_LABEL + ' · Last updated October 5, 2026');
+  }
+
+  /** Shows one view (the single place that switches screens). `btn` is the rail button that was tapped, if any. */
+  navigate(v, btn = null) {
+    const ne = Dom.byId('noteEditor');
+    if (ne && !ne.hidden) { this.app.notes.closeNoteEditor(); this.app.overlays.release(this.app.notes.closeNoteEditor); }
+    this.app.passwords.hidePassPanel();
+    if (v !== 'config') this.lastNav = { go: v, mode: this.state.mode };
+    document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
+    const rail = this.state.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)';
+    (btn || document.querySelector(`${rail} .rail-btn[data-go="${v}"]`))?.classList.add('active');
+    const menu = Dom.byId('menuBtn');
+    if (menu) { menu.classList.toggle('active', v === 'config'); menu.setAttribute('aria-expanded', String(v === 'config')); menu.setAttribute('aria-label', v === 'config' ? 'Close settings' : 'Open settings'); }
+    document.querySelectorAll('.view').forEach(s => s.classList.remove('on'));
+    Dom.byId('view-'+v).classList.add('on');
+    if (v === 'timetable') this.app.timetable.setTtMode(this.app.timetable.ttMode);
+    if (v === 'wallet') this.app.wallet.drawWallet();
+    if (v === 'config') { this.app.settings.refreshSettingsUI(); this.app.passwords.hidePassPanel(); this.app.mode.hideModePanel(); }
+    if (v === 'chome') this.app.chillHome.drawChillHome();
+    if (v === 'music') this.app.music.drawMusic();
+    if (v === 'watch') this.app.video.drawWatch();
+    if (v === 'read') this.app.read.setReadMode(this.app.read.readMode);
+    if (v === 'import') this.app.importer.setImportMode(this.app.importer.importMode);
+    this.app.overlays.recordNav({ go: v, mode: this.state.mode });
+  }
+
+  /** Hamburger button: opens Settings; tapping it again returns to the screen you came from. */
+  toggleSettings() {
+    if (!Dom.byId('view-config')?.classList.contains('on')) { this.navigate('config'); return; }
+    const home = this.state.mode === 'chill' ? 'chome' : 'home';
+    const back = this.lastNav && this.lastNav.mode === this.state.mode ? this.lastNav.go : home;
+    this.navigate(back);
   }
 
   /* Clock + greeting */

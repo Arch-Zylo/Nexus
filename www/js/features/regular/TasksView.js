@@ -19,7 +19,7 @@ export class TasksView extends Component {
       const payload = {
         title,
         sub: Dom.byId('t-sub').value.trim(),
-        due: Dom.byId('t-due').value || Util.today(),
+        due: Dom.byId('t-nodue').checked ? '' : (Dom.byId('t-due').value || Util.today()),   // '' = no deadline
         notes: Dom.byId('t-notes').value.trim()
       };
       if (editId) {
@@ -45,22 +45,42 @@ export class TasksView extends Component {
       this.drawTasks(); this.app.home.drawHome();
       this.app.notifications.scheduleDueTaskReminders();
     };
+    Dom.byId('t-nodue').onchange = this.syncDueField;
     Dom.byId('t-due').value = Util.today();
+  }
+
+  /** "No deadline" ticked → the date picker is greyed out and ignored. */
+  syncDueField() {
+    const none = Dom.byId('t-nodue').checked;
+    const due = Dom.byId('t-due');
+    due.disabled = none;
+    if (!none && !due.value) due.value = Util.today();
+  }
+
+  /** Unfinished tasks first — soonest date first, then tasks with no deadline — then finished ones. */
+  sortedTasks() {
+    return [...this.state.tasks].sort((a, b) => {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      if (!a.due !== !b.due) return a.due ? -1 : 1;
+      return (a.due || '').localeCompare(b.due || '');
+    });
   }
 
   drawTasks() {
     const list = Dom.byId('taskList');
-    const items = [...this.state.tasks].sort((a,b)=>a.due.localeCompare(b.due));
+    const items = this.sortedTasks();
     list.innerHTML = items.length ? items.map(t => {
-      const d = Util.daysOut(t.due);
-      const overdue = !t.done && d < 0;
+      const hasDue = !!t.due;
+      const d = hasDue ? Util.daysOut(t.due) : null;
+      const overdue = !t.done && hasDue && d < 0;
+      const info = (t.sub ? Util.esc(t.sub) : '') + (hasDue ? (t.sub ? ' · ' : '') + Util.parseD(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '');
       return `<div class="card${t.done?' done':''}" data-tid="${t.id}" style="cursor:pointer;">
       <div class="card-bar" style="background:${t.done?COLORS[4]:(overdue?COLORS[1]:COLORS[0])}"></div>
       <div class="card-body">
         <div class="card-title">${Util.esc(t.title)}
-          <span class="tag${overdue?' warn':(t.done?' ok':'')}">${t.done?'Done':(overdue?'Overdue':Util.rel(d))}</span>
+          <span class="tag${overdue?' warn':(t.done?' ok':'')}">${t.done?'Done':(overdue?'Overdue':(hasDue?Util.rel(d):'No deadline'))}</span>
         </div>
-        <div class="card-info">${t.sub?Util.esc(t.sub)+' · ':''}${Util.parseD(t.due).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+        ${info?`<div class="card-info">${info}</div>`:''}
         ${t.notes?`<div class="card-note">${Util.esc(t.notes)}</div>`:''}
       </div>
       <div class="card-ops">
@@ -86,15 +106,14 @@ export class TasksView extends Component {
   showTaskDetail(tid) {
     const t = this.state.tasks.find(x => x.id === tid);
     if (!t) return;
-    const d = Util.daysOut(t.due);
-    const overdue = !t.done && d < 0;
+    const overdue = !t.done && !!t.due && Util.daysOut(t.due) < 0;
     Dom.byId('dlgTitle').textContent = 'Task';
     Dom.byId('dlgBody').innerHTML = `
     <div class="class-detail">
       <div class="cd-title">${Util.esc(t.title)}${t.done ? ' <span class="tag ok">Done</span>' : overdue ? ' <span class="tag warn">Overdue</span>' : ''}</div>
       <div class="cd-rows">
         <div class="cd-row"><span class="cd-k">Subject</span><span class="cd-v">${t.sub ? Util.esc(t.sub) : '—'}</span></div>
-        <div class="cd-row"><span class="cd-k">Due</span><span class="cd-v">${Util.parseD(t.due).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'})}</span></div>
+        <div class="cd-row"><span class="cd-k">Due</span><span class="cd-v">${t.due ? Util.parseD(t.due).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'}) : 'No deadline'}</span></div>
         <div class="cd-row"><span class="cd-k">Notes</span><span class="cd-v">${t.notes ? Util.esc(t.notes) : '—'}</span></div>
       </div>
       <div class="cd-actions">
@@ -121,7 +140,9 @@ export class TasksView extends Component {
     Dom.byId('t-edit-id').value = t ? t.id : '';
     Dom.byId('t-title').value = t ? (t.title || '') : '';
     Dom.byId('t-sub').value = t ? (t.sub || '') : '';
-    Dom.byId('t-due').value = t ? (t.due || Util.today()) : Util.today();
+    Dom.byId('t-nodue').checked = !!t && !t.due;
+    Dom.byId('t-due').value = (t && t.due) || Util.today();
+    this.syncDueField();
     Dom.byId('t-notes').value = t ? (t.notes || '') : '';
     Dom.byId('deleteTask').hidden = !t;
     Dom.byId('sheetTask').classList.add('open');
@@ -132,7 +153,9 @@ export class TasksView extends Component {
     Dom.byId('t-edit-id').value = '';
     Dom.byId('t-title').value = '';
     Dom.byId('t-sub').value = '';
+    Dom.byId('t-nodue').checked = false;
     Dom.byId('t-due').value = Util.today();
+    this.syncDueField();
     Dom.byId('t-notes').value = '';
     Dom.byId('deleteTask').hidden = true;
     Dom.byId('sheetTask').classList.remove('open');

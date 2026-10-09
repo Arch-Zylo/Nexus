@@ -53,7 +53,7 @@ export class SettingsView extends Component {
       else if (action === 'mode') {
         // Same behaviour as the Theme row: one tap flips it, you stay in Settings
         this.app.mode.applyMode(this.state.mode === 'chill' ? 'regular' : 'chill');
-        document.querySelector(this.state.mode === 'chill' ? '.rail-chill [data-go="config"]' : '.rail:not(.rail-chill) [data-go="config"]')?.click();
+        this.app.shell.navigate('config');
       }
       else if (action === 'export') this.app.backup.doExport();
       else if (action === 'import') {
