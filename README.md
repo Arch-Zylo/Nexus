@@ -87,15 +87,54 @@ and **Import** to restore it.
 ## Project layout
 
 ```
-www/                 the app
+www/                         the app (served as-is by the browser and by Capacitor)
   index.html
-  nexus.css
-  nexus.js
-  circuit-bg.js      animated Circuit theme background
-  starry-bg.js       animated Starry Night theme background
-  dragon-bg.js       animated Dragon theme background
-  assets/
-assets/              app icon (icon.png) and icon-options/ to try later
-package.json         Capacitor and Local Notifications dependencies
+  css/nexus.css
+  fonts/  assets/
+  js/
+    main.js                  entry point: new App().start()
+    core/                    App (composition root), Component (base class), Store, Toast,
+                             OverlayManager (back button), ThemeManager, ModeManager, Shell,
+                             BottomSheet, Dialog, TermsGate, NotificationService,
+                             Util / Dom / Platform (static helpers), constants
+    storage/                 MediaDB (IndexedDB), BackupService, ZipArchive, ZipWriter
+    media/                   Thumbnails, Id3
+    ui/                      ProgressCard, ListAnimator, Motion, Icons
+    features/regular/        HomeView, TimetableView, EventsView, TasksView, PeopleView,
+                             NotesView, WalletView, PasswordsView, SettingsView, SpendingService
+    features/chill/          ChillHome, MusicLibrary, AudioPlayer, NowPlaying, VideoPlayer,
+                             ReadView, MangaReader, StoriesView, MediaImporter
+    features/chill/manga/    MangaImporter, SeriesView, MangaModel
+    backgrounds/             animated Circuit / Starry Night / Dragon theme backgrounds
+tests/e2e/                   browser smoke test (Playwright) — `npm run test:e2e`
+assets/                      app icon (icon.png) and icon-options/ to try later
+package.json                 Capacitor and Local Notifications dependencies
 capacitor.config.json
 ```
+
+## Architecture
+
+The code is organised as classes (ES modules), one class per file.
+
+- **`App`** is the composition root. It creates one instance of every service and
+  feature view, passes itself to each, and calls their `init()` in order.
+- **`Component`** is the base class of everything stateful. A component reaches its
+  collaborators as `this.app.<name>` (for example `this.app.toast.show(...)`,
+  `this.app.audio.playChillTrack(i)`) and the saved data as `this.state`. Methods are
+  auto-bound, so they can be passed around as callbacks safely.
+- **Services** (`Store`, `Toast`, `OverlayManager`, `MediaDB`, `BackupService`, …) own
+  one concern and its state. **Feature views** (`TasksView`, `MangaReader`, …) own one
+  screen: its `init()` wires the DOM, its `draw…()` methods render.
+- **Static helper classes** (`Util`, `Dom`, `Icons`, `Platform`, `MangaModel`, `Id3`,
+  `ZipWriter`) hold pure functions with no state; **`constants.js`** holds shared data.
+
+To add a feature: create a class that extends `Component` in `js/features/…`, then add
+one line to `App`'s constructor (`this.myFeature = new MyFeature(this);`). It will be
+initialised automatically.
+
+## Tests
+
+`npm run test:e2e` drives the real UI in headless Chromium (about 40 checks: every
+screen, add/edit/delete flows, music, video and manga import with the progress card,
+the manga reader's page turns, backup export/restore and wipe). Install once with
+`npm install` and `npx playwright install chromium`.

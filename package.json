@@ -7,7 +7,8 @@
     "sync": "cap sync android",
     "android": "cap open android",
     "icons": "capacitor-assets generate --android",
-    "build:apk": "cap sync android && cd android && ./gradlew assembleDebug"
+    "build:apk": "cap sync android && cd android && ./gradlew assembleDebug",
+    "test:e2e": "node tests/e2e/smoke.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^6.1.2"
+    "@capacitor/cli": "^6.1.2",
+    "playwright": "^1.50.0"
   }
 }

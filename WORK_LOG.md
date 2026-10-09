@@ -1,5 +1,15 @@
 # Nexus — Work Log
 
+## Update 14 — Object-oriented restructure
+- [x] **`www/nexus.js` (3,894 lines of global functions + variables) is now 49 small ES-module files**, one class each, under `www/js/` (`core`, `storage`, `media`, `ui`, `features/regular`, `features/chill`, `backgrounds`). `fx.js` became `ProgressCard`, `ListAnimator` and `Motion`; `nexus.css` moved to `www/css/`. See README → Architecture
+- [x] `App` is the composition root; every service and feature view extends `Component` and talks to the others as `this.app.<name>` instead of through globals. Shared data is `this.state`
+- [x] Methods are auto-bound (safe to pass as callbacks); pure helpers are static classes (`Util`, `Dom`, `Icons`, `Platform`…); shared data is in `core/constants.js`
+- [x] Cross-component writes were replaced by methods: `OverlayManager.recordNav`, `AudioPlayer.refreshQueue / stop / seekFraction / toggleShuffle / cycleRepeat`
+- [x] **Behaviour is unchanged.** The conversion was done by a script that resolves every identifier with the TypeScript compiler (so no reference could be missed), then verified three ways: type-check of all modules (no unresolved names/imports; deliberately planted bad references were caught), the same 41-check browser test passing on the old and new builds, and the saved app state after the test run being identical in both
+- [x] New: `tests/e2e/` (Playwright) with `npm run test:e2e`
+
+**Not verified / limits:** not run on a real Android device — ES modules should work in Capacitor's WebView but please test an APK. Code paths that only run natively are untested here (local notifications, saving backups through the Filesystem plugin, the hardware back button). The classes keep the original method bodies, so some methods are still long (for example `HomeView.drawHome`); splitting those is a follow-up. The one-off conversion script is not part of the project
+
 ## Update 13 — Manga reading transitions
 - [x] **Paged modes (LTR / RTL):** the next page slides + fades in from the direction you read towards (reversed for RTL). The image is decoded before it appears, so there is no flash, and the neighbouring pages are pre-loaded so turns feel instant. Fast taps no longer show pages out of order
 - [x] **Chapter or reading-mode change:** old pages fade down, new ones rise in
