@@ -1,5 +1,12 @@
 # Nexus — Work Log
 
+## Update 20 — Menu in the reference style (still v1.5.0 beta)
+- [x] The ☰ dropdown is now a menu like the reference screenshot: a left-aligned panel (84% of the width on phones, 340 px on larger screens) that drops from the top bar, profile card on top, then **Dashboard · Password · Theme · Settings · Profile · About app** with icons, a gold highlight on Dashboard when you are on the home screen, and a footer with the version. The ☰ stays in view (turns into an X) and toggles it
+- [x] Item actions: Dashboard → home (or Chill home) and closes the menu; Password → the password manager; Theme → cycles the theme in place (value shown on the row); Settings / Profile / About app → pages inside the dropdown with a ‹ Back to the menu. Android Back steps back through them (page → menu → closed)
+- [x] Reorganised: the Profile group (name, school) moved to the Profile page; the About group (app, version, storage, terms) moved to About app; the rest stays under Settings. Version text now comes from `APP_VERSION_LABEL` everywhere
+- [x] Tests: menu items, Theme, Password and Back, Settings/Profile/About pages, Android Back inside a page, Dashboard — 54/54 pass
+**Not verified:** on a real Android device
+
 ## Update 19 — Custom greetings + dropdown Settings (still v1.5.0 beta)
 - [x] **Settings → Greeting** (new panel, `features/regular/GreetingPanel.js`): upload, replace, play and remove a clip for Morning / Afternoon / Evening / Night plus "Any time", "Play greeting now", "Remove all my clips", and the on/off switch. Validation: audio only, ≤ 6 MB, ≤ 30 s, unreadable files rejected with a message. Clips live in the on-device media database (`greet:<slot>`, with name and length), so they are not in JSON/zip backups and are cleared by Wipe all data / restoring a backup
 - [x] Playback order (`Greeter.playFile`): your clip for the current time → your "Any time" clip → default `assets/greeting.mp3` → built-in voice (wording changes by time of day). The `assets/greetings/` folder idea from Update 18 is gone — uploads replace it

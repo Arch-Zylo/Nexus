@@ -37,7 +37,7 @@ as an installable Android app.
 | **People** | Contacts with birthdays and ages |
 | **Notes** | Quick notes |
 | **Wallet** | Multiple accounts, income and expenses, loans, transfers, spending by category |
-| **Settings** (☰ button in the top bar — drops down over the current screen; tap ☰ again to close) | Themes and styles, name and school, currency, 12/24-hour time, greeting clips, reminders, spending options, backup (export/import), password manager and the optional app lock |
+| **Menu** (☰ button in the top bar — drops down over the current screen; tap ☰ again to close) | Dashboard, Password (the password manager), Theme (one tap cycles it), Settings, Profile (name and school) and About app (version, storage, terms). **Settings** holds appearance, security and app lock, preferences, greeting clips, spending options, backup (export/import) and the danger zone |
 
 ## What's new
 

@@ -1,5 +1,5 @@
 import { Component } from '../../core/Component.js';
-import { BACKUP_KEY, CURRENCIES, STYLES, THEMES } from '../../core/constants.js';
+import { APP_VERSION_LABEL, BACKUP_KEY, CURRENCIES, STYLES, THEMES } from '../../core/constants.js';
 import { Dom } from '../../core/Dom.js';
 
 export class SettingsView extends Component {
@@ -98,9 +98,15 @@ export class SettingsView extends Component {
     set('themeValue', THEMES.find(x => x.id === (this.state.theme || 'night'))?.label || 'Night');
     set('styleValue', STYLES.find(x => x.id === (this.state.style || 'soft'))?.label || 'Soft');
     set('nameValue', this.state.name || 'Not set');
+    set('menuThemeValue', THEMES.find(x => x.id === (this.state.theme || 'night'))?.label || 'Night');
+    const initial = ((this.state.name || 'N').trim()[0] || 'N').toUpperCase();
     set('drawerName', this.state.name || 'Student');
-    set('drawerSchool', this.state.school || 'Set your name & school below');
-    set('drawerAvatar', ((this.state.name || 'N').trim()[0] || 'N').toUpperCase());
+    set('drawerSchool', this.state.school || 'Set your name & school');
+    set('drawerAvatar', initial);
+    set('profileName', this.state.name || 'Student');
+    set('profileSchool', this.state.school || 'No school set');
+    set('profileAvatar', initial);
+    ['menuVersion', 'aboutVersion', 'appVersionValue'].forEach(id => set(id, APP_VERSION_LABEL));
     const lk = this.app.lock;
     set('appLockValue', lk && lk.enabled ? 'On' : 'Off');
     set('lockDelayValue', lk && lk.enabled ? lk.delayInfo().label : '');

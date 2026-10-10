@@ -21,6 +21,8 @@ export class Shell extends Component {
     });
     Dom.byId('menuBtn')?.addEventListener('click', this.toggleSettings);
     Dom.byId('drawerScrim')?.addEventListener('click', this.closeSettings);
+    Dom.byId('menuPage')?.addEventListener('click', this.onMenu);
+    Dom.byId('view-config')?.addEventListener('click', (e) => { if (e.target.closest('[data-menu-back]')) this.goMenu(); });
     document.querySelectorAll('[data-go-chill]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
@@ -57,19 +59,21 @@ export class Shell extends Component {
     if (v === 'watch') this.app.video.drawWatch();
     if (v === 'read') this.app.read.setReadMode(this.app.read.readMode);
     if (v === 'import') this.app.importer.setImportMode(this.app.importer.importMode);
+    document.querySelector('[data-menu="dashboard"]')?.classList.toggle('active', v === 'home' || v === 'chome');
     this.app.overlays.recordNav({ go: v, mode: this.state.mode });
   }
 
-  /* Settings drawer: slides in from the left over the current screen (the ☰ button, scrim tap, ✕ or Back closes it) */
+  /* Menu dropdown: drops down from the top bar (☰ toggles it; the dimmed area or Back closes it) */
   openSettings() {
     const d = Dom.byId('settingsDrawer');
     if (!d || this.settingsOpen) return;
     this.settingsOpen = true;
+    this.passOrigin = null; this.onSub = false;
     this.app.passwords.hidePassPanel();
     this.app.mode.hideModePanel();
     this.app.greetPanel.hide();
     this.app.settings.refreshSettingsUI();
-    Dom.byId('view-config').scrollTop = 0;
+    this.showPage('menu');
     d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
     Dom.byId('drawerScrim').classList.add('open');
     this.syncMenuBtn();
@@ -78,14 +82,51 @@ export class Shell extends Component {
 
   /** Visuals only — the overlay stack calls this when Back closes the drawer. */
   hideSettings() {
-    this.settingsOpen = false;
+    this.settingsOpen = false; this.onSub = false; this.passOrigin = null;
     const d = Dom.byId('settingsDrawer');
     if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
     Dom.byId('drawerScrim')?.classList.remove('open');
     this.syncMenuBtn();
   }
 
-  closeSettings() { if (this.settingsOpen) this.app.overlays.close(this.hideSettings); }
+  closeSettings() {
+    if (!this.settingsOpen) return;
+    this.passOrigin = null;
+    this.app.passwords.hidePassPanel();             // drops its Back entry if a page layer is open
+    this.app.overlays.release(this.backToMenu);
+    this.app.overlays.close(this.hideSettings);
+  }
+
+  /* ---- pages inside the dropdown: menu → settings / profile / about (Back returns to the menu) ---- */
+  showPage(name) {
+    const ids = { menu: 'menuPage', settings: 'settingsMain', profile: 'profilePanel', about: 'aboutPanel' };
+    for (const [k, id] of Object.entries(ids)) {
+      const el = Dom.byId(id); if (!el) continue;
+      if (k === name) { el.removeAttribute('hidden'); el.style.display = ''; } else el.style.display = 'none';
+    }
+    ['passPanel', 'modePanel', 'greetPanel'].forEach((id) => { const el = Dom.byId(id); if (el) { el.setAttribute('hidden', ''); el.style.display = 'none'; } });
+    const body = Dom.byId('view-config'); if (body) body.scrollTop = 0;
+  }
+
+  /** Opens a page from the menu and adds a Back step for it. */
+  openPage(name) {
+    this.showPage(name);
+    if (!this.onSub) { this.onSub = true; this.app.overlays.open(this.backToMenu); }
+  }
+
+  /** Visual only — the overlay stack calls this when Back leaves a page. */
+  backToMenu() { this.onSub = false; this.passOrigin = null; this.showPage('menu'); }
+
+  goMenu() { if (this.onSub) this.app.overlays.close(this.backToMenu); else this.showPage('menu'); }
+
+  onMenu(e) {
+    const b = e.target.closest('[data-menu]'); if (!b) return;
+    const a = b.dataset.menu;
+    if (a === 'dashboard') { this.closeSettings(); this.navigate(this.state.mode === 'chill' ? 'chome' : 'home'); }
+    else if (a === 'password') { this.passOrigin = 'menu'; this.showPage('settings'); this.app.passwords.showPassPanel(); }
+    else if (a === 'theme') { this.app.theme.nextTheme(); this.app.settings.refreshSettingsUI(); }
+    else if (a === 'settings' || a === 'profile' || a === 'about') this.openPage(a);
+  }
   toggleSettings() { this.settingsOpen ? this.closeSettings() : this.openSettings(); }
 
   syncMenuBtn() {

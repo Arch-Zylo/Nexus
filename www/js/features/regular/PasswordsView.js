@@ -120,6 +120,8 @@ export class PasswordsView extends Component {
     }
     if (main) main.style.display = '';
     if (Dom.byId('sheetPass')) this.resetPassForm();
+    const sh = this.app.shell;
+    if (sh && sh.passOrigin === 'menu') { sh.passOrigin = null; sh.showPage('menu'); }   // opened from the menu → Back returns there
   }
 
   drawPasswords() {
