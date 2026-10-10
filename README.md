@@ -25,6 +25,7 @@ as an installable Android app.
 - **Understand where your money goes.** Track accounts, income, expenses, loans
   and transfers, and see your spending broken down by category.
 - **A greeting when you open the app.** Nexus plays a short greeting once each time it is opened (not again while it stays open, and not when you switch back to it). In **Settings → Greeting** you can upload your own audio clip (up to 30 seconds / 6 MB) for the morning (05:00–11:59), afternoon (12:00–16:59), evening (17:00–20:59) and night (21:00–04:59), plus an "Any time" clip for anything without its own. For the current time Nexus plays your clip for that time, then your "Any time" clip, then its default clip (`www/assets/greeting.mp3`), then the phone's built-in voice. Clips are stored on the device only, are not part of backups, and each can be played, replaced or removed. The same screen has the on/off switch.
+- **Chill dashboard.** After a greeting it shows five shelves, in this order: **Recently Added** (everything, newest first), **Music** (the song playing now, then your songs), **Watch** (videos you paused part-way, with progress, then the rest), **Read** (series you are part-way through, then other series and stories) and **Favorites** (anything you hearted). Tap an item to open or play it; "See all" jumps to that section.
 - **Keep your logins safe.** A built-in password manager lives in Settings, and you can turn on an optional 4-digit PIN lock (**Settings → Security → App lock**) that asks for the PIN when Nexus opens and when you return after being away (immediately, 1 minute or 5 minutes). It keeps other people out of the app; it does not encrypt your data. Forgot the PIN? The only way back in is to erase the app's data from the lock screen.
 
 ## Features
@@ -37,7 +38,7 @@ as an installable Android app.
 | **People** | Contacts with birthdays and ages |
 | **Notes** | Quick notes |
 | **Wallet** | Multiple accounts, income and expenses, loans, transfers, spending by category |
-| **Menu** (☰ button in the top bar — drops down over the current screen; tap ☰ again to close) | Dashboard, Password (the password manager), Theme (one tap cycles it), Settings, Profile (name and school) and About app (version, storage, terms). **Settings** holds appearance, security and app lock, preferences, greeting clips, spending options, backup (export/import) and the danger zone |
+| **Menu** (☰ button in the top bar — drops down over the current screen; tap ☰ again to close) | **Dashboard** (home or Chill home), **Password**, **Settings** and **Profile** each open as a full page; **Theme** cycles the theme in place; **Mode** switches between Regular and Chill and lands on the matching dashboard; **About app** (version, storage, terms) opens inside the menu. Settings holds appearance, security and app lock, preferences, greeting clips, spending options, backup (export/import) and the danger zone; Profile has your name and school plus a few counts |
 
 ## What's new
 

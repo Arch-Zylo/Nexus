@@ -376,166 +376,12 @@
         </div>
       </section>
 
-      <!-- CHILL HOME -->
-      <section class="view" id="view-chome">
+      <!-- SETTINGS (full page) -->
+      <section class="view" id="view-settings">
         <div class="hero">
-          <h1 id="chGreet">Chill</h1>
-          <p id="chGreetSub">Your downtime stuff — music, shows, and reading.</p>
+          <h1>Settings</h1>
         </div>
-        <div class="metrics" id="chMetrics"></div>
-        <div class="chill-quick-grid">
-          <button type="button" class="chill-quick-tile" data-go-chill="music">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-            <span>Music</span>
-          </button>
-          <button type="button" class="chill-quick-tile" data-go-chill="watch">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></svg>
-            <span>Watch</span>
-          </button>
-          <button type="button" class="chill-quick-tile" data-go-chill="read">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 5.5A2.5 2.5 0 014.5 3H11v16H4.5A2.5 2.5 0 002 16.5v-11z"/><path d="M22 5.5A2.5 2.5 0 0019.5 3H13v16h6.5a2.5 2.5 0 012.5 2.5v-16z"/></svg>
-            <span>Read</span>
-          </button>
-          <button type="button" class="chill-quick-tile" data-go-chill="import">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
-            <span>Import</span>
-          </button>
-        </div>
-        <div class="panels">
-          <div class="panel">
-            <div class="panel-head"><h2>Now Playing</h2></div>
-            <div class="panel-body" id="chNow"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>Continue Reading</h2></div>
-            <div class="panel-body" id="chReading"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>Continue Watching</h2></div>
-            <div class="panel-body" id="chWatching"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>Favourites</h2></div>
-            <div class="panel-body" id="chFavs"></div>
-          </div>
-          <div class="panel span2">
-            <div class="panel-head"><h2>Recently Added</h2></div>
-            <div class="panel-body" id="chillRecent"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- MUSIC -->
-      <section class="view" id="view-music">
-        <div class="hero"><h1>Music</h1></div>
-        <div id="musicList" class="chill-list"></div>
-        <div class="mini-player" id="miniPlayer" hidden>
-          <div class="mp-prog" id="mpProg"></div>
-          <div class="mp-thumb" id="mpThumb">♪</div>
-          <div class="mini-player-info" id="mpOpen" title="Open player">
-            <div class="mini-player-title" id="mpTitle">—</div>
-            <div class="mini-player-sub" id="mpSub">Not playing</div>
-          </div>
-          <div class="mini-player-controls">
-            <button type="button" id="mpPrev" title="Previous"></button>
-            <button type="button" id="mpPlay" title="Play/Pause"></button>
-            <button type="button" id="mpNext" title="Next"></button>
-          </div>
-        </div>
-        <audio id="chillAudio"></audio>
-      </section>
-
-      <!-- WATCH -->
-      <section class="view" id="view-watch">
-        <div class="hero"><h1>Watch</h1></div>
-        <div id="watchGrid" class="chill-grid"></div>
-      </section>
-
-      <!-- READ -->
-      <section class="view" id="view-read">
-        <div class="tt-header">
-          <div class="tt-title-row">
-            <h1>Read</h1>
-            <div class="tt-mode-toggle" role="tablist">
-              <button type="button" class="tt-mode on" data-read-tab="manga">Manga</button>
-              <button type="button" class="tt-mode" data-read-tab="stories">Stories</button>
-            </div>
-          </div>
-          <button class="btn btn-gold" id="btnAddStory" hidden>+ Story</button>
-        </div>
-        <div id="mangaMode">
-          <div id="mangaGrid" class="chill-grid"></div>
-        </div>
-        <div id="storiesMode" hidden>
-          <div id="storyList" class="chill-list"></div>
-        </div>
-        <div class="sheet" id="sheetStory">
-          <input type="hidden" id="st-edit-id" value="">
-          <div class="fields">
-            <div class="field wide"><label>Title</label><input id="st-title" placeholder="Title"></div>
-            <div class="field wide"><label>Story</label><textarea id="st-body" placeholder="Write something…" style="min-height:180px;"></textarea></div>
-          </div>
-          <div class="form-foot">
-            <button class="btn btn-gold" id="saveStory">Save</button>
-            <button class="btn btn-ghost" id="cancelStory">Cancel</button>
-            <button class="btn btn-ghost" id="deleteStory" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- IMPORT -->
-      <section class="view" id="view-import">
-        <div class="tt-header">
-          <div class="tt-title-row">
-            <h1>Import</h1>
-            <div class="tt-mode-toggle" role="tablist">
-              <button type="button" class="tt-mode on" data-import-tab="music">Music</button>
-              <button type="button" class="tt-mode" data-import-tab="video">Video</button>
-              <button type="button" class="tt-mode" data-import-tab="manga">Manga</button>
-            </div>
-          </div>
-        </div>
-        <div id="importMusicMode">
-          <label class="btn btn-gold import-picker">+ Add Music<input type="file" id="importMusicFile" accept="audio/*" multiple hidden></label>
-          <div id="importMusicList" class="chill-list"></div>
-        </div>
-        <div id="importVideoMode" hidden>
-          <label class="btn btn-gold import-picker">+ Add Video<input type="file" id="importVideoFile" accept="video/*" multiple hidden></label>
-          <div id="importVideoList" class="chill-list"></div>
-        </div>
-        <div id="importMangaMode" hidden>
-          <div class="manga-import">
-            <button type="button" class="mg-plus" id="mgPlus" title="Add a series or a chapter"><span>＋</span>Add series or chapter</button>
-            <div class="mg-hint" id="mgStatus"></div>
-          </div>
-          <div id="importMangaList" class="chill-list"></div>
-        </div>
-        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device. Settings → Export packs them into a .nexusbackup file so you can restore them later.</p>
-      </section>
-
-    </div>
-  </div>
-</div>
-
-<!-- Settings dropdown (drops down from the top bar when ☰ is tapped) -->
-<div class="drawer-scrim" id="drawerScrim"></div>
-<aside class="drawer" id="settingsDrawer" aria-label="Settings" aria-hidden="true">
-  <div class="drawer-body" id="view-config">
-        <nav id="menuPage" class="menu-list" aria-label="Menu">
-          <button type="button" class="menu-profile" data-menu="profile">
-            <span class="drawer-avatar" id="drawerAvatar">N</span>
-            <div class="drawer-who"><div class="drawer-name" id="drawerName">Student</div><div class="drawer-school" id="drawerSchool">Set your name &amp; school</div></div>
-          </button>
-          <button type="button" class="menu-item active" data-menu="dashboard"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span><span class="menu-label">Dashboard</span></button>
-          <button type="button" class="menu-item" data-menu="password"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="menu-label">Password</span></button>
-          <button type="button" class="menu-item" data-menu="theme"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span><span class="menu-label">Theme</span><span class="menu-val" id="menuThemeValue">Night</span></button>
-          <button type="button" class="menu-item" data-menu="settings"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><span class="menu-label">Settings</span></button>
-          <button type="button" class="menu-item" data-menu="profile"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span><span class="menu-label">Profile</span></button>
-          <button type="button" class="menu-item" data-menu="about"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></span><span class="menu-label">About app</span></button>
-          <div class="menu-foot"><b>NEXUS</b> · Student OS<br><span id="menuVersion">v1.5.0 (beta)</span></div>
-        </nav>
         <div id="settingsMain">
-        <div class="page-bar"><button type="button" class="sort-link" data-menu-back>‹ Back</button><span class="page-title">Settings</span></div>
         <p class="set-group-label">Appearance</p>
         <div class="set-list">
           <button type="button" class="set-row" data-set="theme">
@@ -651,30 +497,6 @@
         <p id="dataMsg" style="font-size:0.8rem;margin-top:12px;color:var(--mint);"></p>
         </div><!-- /settingsMain -->
 
-        <!-- Password panel (shown when Password Manager is tapped) -->
-        <div id="passPanel" class="set-panel" hidden>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <button type="button" class="sort-link" id="passBack">‹ Back</button>
-            <button class="btn btn-gold" id="btnAddPass" style="padding:8px 14px;font-size:0.82rem;">+ Add</button>
-          </div>
-          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
-          <div class="sheet" id="sheetPass">
-            <input type="hidden" id="pw-edit-id" value="">
-            <div class="fields" style="grid-template-columns:1fr;">
-              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
-              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
-              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
-              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
-            </div>
-            <div class="form-foot">
-              <button class="btn btn-gold" id="savePass">Save</button>
-              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
-              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
-            </div>
-          </div>
-          <div id="passList"></div>
-        </div>
-
         <!-- Mode panel (shown when Mode is tapped) -->
         <div id="modePanel" class="set-panel" hidden>
           <div style="margin-bottom:12px;">
@@ -712,23 +534,191 @@
           </div>
           <input type="file" id="greetFile" accept="audio/*" hidden>
         </div>
-        <!-- Profile page (opened from the menu) -->
-        <div id="profilePanel" class="set-panel" hidden style="display:none">
-          <div class="page-bar"><button type="button" class="sort-link" data-menu-back>‹ Back</button><span class="page-title">Profile</span></div>
-          <div class="profile-hero"><span class="drawer-avatar big" id="profileAvatar">N</span><div class="drawer-name" id="profileName">Student</div><div class="drawer-school" id="profileSchool"></div></div>
-<div class="set-list">
-          <button type="button" class="set-row" data-set="name">
-            <span class="set-label">Your name</span>
-            <span class="set-value" id="nameValue">Not set</span>
-          </button>
-          <button type="button" class="set-row" data-set="school">
-            <span class="set-label">School</span>
-            <span class="set-value" id="schoolValue">Not set</span>
-          </button>
-        </div>
-          <p class="set-hint">Your name appears on the Dashboard and in your greeting.</p>
-        </div>
+      </section>
 
+      <!-- PASSWORDS (full page) -->
+      <section class="view" id="view-passwords">
+        <div class="hero">
+          <h1>Passwords</h1>
+        </div>
+        <div class="actions">
+          <button class="btn btn-gold" id="btnAddPass">+ Password</button>
+        </div>
+        <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
+          <div class="sheet" id="sheetPass">
+            <input type="hidden" id="pw-edit-id" value="">
+            <div class="fields" style="grid-template-columns:1fr;">
+              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
+              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
+              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
+              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="savePass">Save</button>
+              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
+              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+            </div>
+          </div>
+          <div id="passList"></div>
+      </section>
+
+      <!-- PROFILE (full page) -->
+      <section class="view" id="view-profile">
+        <div class="hero">
+          <h1>Profile</h1>
+        </div>
+        <div class="profile-card">
+          <span class="drawer-avatar big" id="profileAvatar">N</span>
+          <div class="profile-card-text"><div class="profile-card-name" id="profileName">Student</div><div class="profile-card-sub" id="profileSchool">No school set</div></div>
+        </div>
+        <div class="profile-stats" id="profileStats"></div>
+        <div class="profile-form" id="profileForm">
+          <div class="fields" style="grid-template-columns:1fr;">
+            <div class="field"><label>Your name</label><input id="pf-name" placeholder="Shown on the Dashboard and in your greeting" maxlength="40" autocomplete="off"></div>
+            <div class="field"><label>School</label><input id="pf-school" placeholder="Optional" maxlength="60" autocomplete="off"></div>
+          </div>
+          <div class="form-foot"><button class="btn btn-gold" id="pf-save">Save</button></div>
+        </div>
+      </section>
+
+      <!-- CHILL HOME -->
+      <section class="view" id="view-chome">
+        <div class="hero">
+          <h1 id="chGreet">Chill</h1>
+          <p id="chGreetSub">Your downtime stuff — music, shows, and reading.</p>
+        </div>
+        <section class="ch-shelf" aria-labelledby="chHRecent">
+          <div class="ch-shelf-head"><h2 id="chHRecent">Recently Added</h2><button type="button" class="ch-seeall" data-chgo="import">Import ›</button></div>
+          <div id="chillRecent"></div>
+        </section>
+        <section class="ch-shelf" aria-labelledby="chHMusic">
+          <div class="ch-shelf-head"><h2 id="chHMusic">Music</h2><button type="button" class="ch-seeall" data-chgo="music">See all ›</button></div>
+          <div id="chMusic"></div>
+        </section>
+        <section class="ch-shelf" aria-labelledby="chHWatch">
+          <div class="ch-shelf-head"><h2 id="chHWatch">Watch</h2><button type="button" class="ch-seeall" data-chgo="watch">See all ›</button></div>
+          <div id="chWatch"></div>
+        </section>
+        <section class="ch-shelf" aria-labelledby="chHRead">
+          <div class="ch-shelf-head"><h2 id="chHRead">Read</h2><button type="button" class="ch-seeall" data-chgo="read">See all ›</button></div>
+          <div id="chRead"></div>
+        </section>
+        <section class="ch-shelf" aria-labelledby="chHFav">
+          <div class="ch-shelf-head"><h2 id="chHFav">Favorites</h2></div>
+          <div id="chFavs"></div>
+        </section>
+      </section>
+
+      <!-- MUSIC -->
+      <section class="view" id="view-music">
+        <div class="hero"><h1>Music</h1></div>
+        <div id="musicList" class="chill-list"></div>
+        <div class="mini-player" id="miniPlayer" hidden>
+          <div class="mp-prog" id="mpProg"></div>
+          <div class="mp-thumb" id="mpThumb">♪</div>
+          <div class="mini-player-info" id="mpOpen" title="Open player">
+            <div class="mini-player-title" id="mpTitle">—</div>
+            <div class="mini-player-sub" id="mpSub">Not playing</div>
+          </div>
+          <div class="mini-player-controls">
+            <button type="button" id="mpPrev" title="Previous"></button>
+            <button type="button" id="mpPlay" title="Play/Pause"></button>
+            <button type="button" id="mpNext" title="Next"></button>
+          </div>
+        </div>
+        <audio id="chillAudio"></audio>
+      </section>
+
+      <!-- WATCH -->
+      <section class="view" id="view-watch">
+        <div class="hero"><h1>Watch</h1></div>
+        <div id="watchGrid" class="chill-grid"></div>
+      </section>
+
+      <!-- READ -->
+      <section class="view" id="view-read">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Read</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-read-tab="manga">Manga</button>
+              <button type="button" class="tt-mode" data-read-tab="stories">Stories</button>
+            </div>
+          </div>
+          <button class="btn btn-gold" id="btnAddStory" hidden>+ Story</button>
+        </div>
+        <div id="mangaMode">
+          <div id="mangaGrid" class="chill-grid"></div>
+        </div>
+        <div id="storiesMode" hidden>
+          <div id="storyList" class="chill-list"></div>
+        </div>
+        <div class="sheet" id="sheetStory">
+          <input type="hidden" id="st-edit-id" value="">
+          <div class="fields">
+            <div class="field wide"><label>Title</label><input id="st-title" placeholder="Title"></div>
+            <div class="field wide"><label>Story</label><textarea id="st-body" placeholder="Write something…" style="min-height:180px;"></textarea></div>
+          </div>
+          <div class="form-foot">
+            <button class="btn btn-gold" id="saveStory">Save</button>
+            <button class="btn btn-ghost" id="cancelStory">Cancel</button>
+            <button class="btn btn-ghost" id="deleteStory" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- IMPORT -->
+      <section class="view" id="view-import">
+        <div class="tt-header">
+          <div class="tt-title-row">
+            <h1>Import</h1>
+            <div class="tt-mode-toggle" role="tablist">
+              <button type="button" class="tt-mode on" data-import-tab="music">Music</button>
+              <button type="button" class="tt-mode" data-import-tab="video">Video</button>
+              <button type="button" class="tt-mode" data-import-tab="manga">Manga</button>
+            </div>
+          </div>
+        </div>
+        <div id="importMusicMode">
+          <label class="btn btn-gold import-picker">+ Add Music<input type="file" id="importMusicFile" accept="audio/*" multiple hidden></label>
+          <div id="importMusicList" class="chill-list"></div>
+        </div>
+        <div id="importVideoMode" hidden>
+          <label class="btn btn-gold import-picker">+ Add Video<input type="file" id="importVideoFile" accept="video/*" multiple hidden></label>
+          <div id="importVideoList" class="chill-list"></div>
+        </div>
+        <div id="importMangaMode" hidden>
+          <div class="manga-import">
+            <button type="button" class="mg-plus" id="mgPlus" title="Add a series or a chapter"><span>＋</span>Add series or chapter</button>
+            <div class="mg-hint" id="mgStatus"></div>
+          </div>
+          <div id="importMangaList" class="chill-list"></div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--mist);margin-top:14px;">Imported files are stored on this device. Settings → Export packs them into a .nexusbackup file so you can restore them later.</p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- Settings dropdown (drops down from the top bar when ☰ is tapped) -->
+<div class="drawer-scrim" id="drawerScrim"></div>
+<aside class="drawer" id="settingsDrawer" aria-label="Settings" aria-hidden="true">
+  <div class="drawer-body" id="view-config">
+        <nav id="menuPage" class="menu-list" aria-label="Menu">
+          <button type="button" class="menu-profile" data-menu="profile">
+            <span class="drawer-avatar" id="drawerAvatar">N</span>
+            <div class="drawer-who"><div class="drawer-name" id="drawerName">Student</div><div class="drawer-school" id="drawerSchool">Set your name &amp; school</div></div>
+          </button>
+          <button type="button" class="menu-item active" data-menu="dashboard"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span><span class="menu-label">Dashboard</span></button>
+          <button type="button" class="menu-item" data-menu="password"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><span class="menu-label">Password</span></button>
+          <button type="button" class="menu-item" data-menu="theme"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span><span class="menu-label">Theme</span><span class="menu-val" id="menuThemeValue">Night</span></button>
+          <button type="button" class="menu-item" data-menu="mode"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg></span><span class="menu-label">Mode</span><span class="menu-val" id="menuModeValue">Regular</span></button>
+          <button type="button" class="menu-item" data-menu="settings"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><span class="menu-label">Settings</span></button>
+          <button type="button" class="menu-item" data-menu="profile"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span><span class="menu-label">Profile</span></button>
+          <button type="button" class="menu-item" data-menu="about"><span class="menu-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></span><span class="menu-label">About app</span></button>
+          <div class="menu-foot"><b>NEXUS</b> · Student OS<br><span id="menuVersion">v1.5.0 (beta)</span></div>
+        </nav>
         <!-- About page (opened from the menu) -->
         <div id="aboutPanel" class="set-panel" hidden style="display:none">
           <div class="page-bar"><button type="button" class="sort-link" data-menu-back>‹ Back</button><span class="page-title">About app</span></div>

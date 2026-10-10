@@ -5,10 +5,6 @@ import { Dom } from '../../core/Dom.js';
 export class PasswordsView extends Component {
   /** Wires DOM events and applies initial state. Called once by App.start(). */
   init() {
-    Dom.byId('passBack')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.hidePassPanel();
-    });
     /* Password list actions (delegation) */
     Dom.byId('passList')?.addEventListener('click', async (e) => {
       const show = e.target.closest('[data-show]');
@@ -98,30 +94,12 @@ export class PasswordsView extends Component {
     });
   }
 
-  showPassPanel() {
-    const main = Dom.byId('settingsMain');
-    const panel = Dom.byId('passPanel');
-    if (panel && panel.hasAttribute('hidden')) this.app.overlays.open(this.hidePassPanel);
-    if (main) main.style.display = 'none';
-    if (panel) {
-      panel.removeAttribute('hidden');
-      panel.style.display = 'block';
-    }
-    this.drawPasswords();
-  }
+  /** Opens the Passwords page. */
+  showPassPanel() { this.app.shell.navigate('passwords'); }
 
+  /** Called whenever you leave the Passwords page (and on reset): closes the add/edit form. */
   hidePassPanel() {
-    this.app.overlays.release(this.hidePassPanel);
-    const main = Dom.byId('settingsMain');
-    const panel = Dom.byId('passPanel');
-    if (panel) {
-      panel.setAttribute('hidden', '');
-      panel.style.display = 'none';
-    }
-    if (main) main.style.display = '';
     if (Dom.byId('sheetPass')) this.resetPassForm();
-    const sh = this.app.shell;
-    if (sh && sh.passOrigin === 'menu') { sh.passOrigin = null; sh.showPage('menu'); }   // opened from the menu → Back returns there
   }
 
   drawPasswords() {

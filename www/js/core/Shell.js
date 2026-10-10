@@ -59,7 +59,10 @@ export class Shell extends Component {
     if (v === 'watch') this.app.video.drawWatch();
     if (v === 'read') this.app.read.setReadMode(this.app.read.readMode);
     if (v === 'import') this.app.importer.setImportMode(this.app.importer.importMode);
-    document.querySelector('[data-menu="dashboard"]')?.classList.toggle('active', v === 'home' || v === 'chome');
+    if (v === 'passwords') this.app.passwords.drawPasswords();
+    if (v === 'profile') this.app.profile.draw();
+    if (v === 'settings') { this.app.mode.hideModePanel(); this.app.greetPanel.hide(); this.app.settings.refreshSettingsUI(); }
+    this.syncMenuActive(v);
     this.app.overlays.recordNav({ go: v, mode: this.state.mode });
   }
 
@@ -67,11 +70,7 @@ export class Shell extends Component {
   openSettings() {
     const d = Dom.byId('settingsDrawer');
     if (!d || this.settingsOpen) return;
-    this.settingsOpen = true;
-    this.passOrigin = null; this.onSub = false;
-    this.app.passwords.hidePassPanel();
-    this.app.mode.hideModePanel();
-    this.app.greetPanel.hide();
+    this.settingsOpen = true; this.onSub = false;
     this.app.settings.refreshSettingsUI();
     this.showPage('menu');
     d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
@@ -82,7 +81,7 @@ export class Shell extends Component {
 
   /** Visuals only — the overlay stack calls this when Back closes the drawer. */
   hideSettings() {
-    this.settingsOpen = false; this.onSub = false; this.passOrigin = null;
+    this.settingsOpen = false; this.onSub = false;
     const d = Dom.byId('settingsDrawer');
     if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
     Dom.byId('drawerScrim')?.classList.remove('open');
@@ -91,20 +90,17 @@ export class Shell extends Component {
 
   closeSettings() {
     if (!this.settingsOpen) return;
-    this.passOrigin = null;
-    this.app.passwords.hidePassPanel();             // drops its Back entry if a page layer is open
     this.app.overlays.release(this.backToMenu);
     this.app.overlays.close(this.hideSettings);
   }
 
-  /* ---- pages inside the dropdown: menu → settings / profile / about (Back returns to the menu) ---- */
+  /* ---- inside the dropdown: the menu, and the About page (Back returns to the menu) ---- */
   showPage(name) {
-    const ids = { menu: 'menuPage', settings: 'settingsMain', profile: 'profilePanel', about: 'aboutPanel' };
+    const ids = { menu: 'menuPage', about: 'aboutPanel' };
     for (const [k, id] of Object.entries(ids)) {
       const el = Dom.byId(id); if (!el) continue;
       if (k === name) { el.removeAttribute('hidden'); el.style.display = ''; } else el.style.display = 'none';
     }
-    ['passPanel', 'modePanel', 'greetPanel'].forEach((id) => { const el = Dom.byId(id); if (el) { el.setAttribute('hidden', ''); el.style.display = 'none'; } });
     const body = Dom.byId('view-config'); if (body) body.scrollTop = 0;
   }
 
@@ -115,18 +111,28 @@ export class Shell extends Component {
   }
 
   /** Visual only — the overlay stack calls this when Back leaves a page. */
-  backToMenu() { this.onSub = false; this.passOrigin = null; this.showPage('menu'); }
+  backToMenu() { this.onSub = false; this.showPage('menu'); }
 
   goMenu() { if (this.onSub) this.app.overlays.close(this.backToMenu); else this.showPage('menu'); }
 
+  /** Dashboard, Password, Settings and Profile are full pages; Theme and Mode act in place; About is a page in the dropdown. */
   onMenu(e) {
     const b = e.target.closest('[data-menu]'); if (!b) return;
     const a = b.dataset.menu;
-    if (a === 'dashboard') { this.closeSettings(); this.navigate(this.state.mode === 'chill' ? 'chome' : 'home'); }
-    else if (a === 'password') { this.passOrigin = 'menu'; this.showPage('settings'); this.app.passwords.showPassPanel(); }
-    else if (a === 'theme') { this.app.theme.nextTheme(); this.app.settings.refreshSettingsUI(); }
-    else if (a === 'settings' || a === 'profile' || a === 'about') this.openPage(a);
+    if (a === 'theme') { this.app.theme.nextTheme(); this.app.settings.refreshSettingsUI(); return; }
+    if (a === 'about') { this.openPage('about'); return; }
+    this.closeSettings();
+    if (a === 'dashboard') this.navigate(this.state.mode === 'chill' ? 'chome' : 'home');
+    else if (a === 'mode') this.app.mode.setAppMode(this.state.mode === 'chill' ? 'regular' : 'chill');
+    else this.navigate({ password: 'passwords', settings: 'settings', profile: 'profile' }[a]);
   }
+
+  /** Highlights the menu entry for the page you are on. */
+  syncMenuActive(v) {
+    const key = { home: 'dashboard', chome: 'dashboard', passwords: 'password', settings: 'settings', profile: 'profile' }[v];
+    document.querySelectorAll('#menuPage .menu-item').forEach(el => el.classList.toggle('active', el.dataset.menu === key));
+  }
+
   toggleSettings() { this.settingsOpen ? this.closeSettings() : this.openSettings(); }
 
   syncMenuBtn() {

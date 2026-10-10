@@ -23,13 +23,12 @@ async function step(name, fn) {
 }
 const settingsOpen = () => page.evaluate(() => document.getElementById('settingsDrawer').classList.contains('open'));
 const vis = (sel) => page.evaluate((q) => { const e = document.querySelector(q); return !!e && getComputedStyle(e).display !== 'none' && !e.hidden; }, sel);
-const openMenuPage = async (name) => {          // opens the dropdown and lands on one of its pages (settings | profile | about)
-  if (!(await settingsOpen())) { await page.click('#menuBtn'); await page.waitForTimeout(280); }
-  const target = { settings: '#settingsMain', profile: '#profilePanel', about: '#aboutPanel' }[name];
-  if (await vis(target)) return;
-  if (!(await vis('#menuPage'))) { await page.locator('[data-menu-back]:visible').first().click(); await page.waitForTimeout(150); }
-  await page.click(`[data-menu="${name}"]`); await page.waitForTimeout(150); };
-const openSettings = () => openMenuPage('settings');
+const onView = (id) => page.evaluate((i) => document.getElementById(i).classList.contains('on'), id);
+const openMenu = async () => { if (!(await settingsOpen())) { await page.click('#menuBtn'); await page.waitForTimeout(280); } if (!(await vis('#menuPage'))) { await page.locator('[data-menu-back]:visible').first().click(); await page.waitForTimeout(200); } };
+const gotoPage = async (item, view) => { await openMenu(); await page.click(`[data-menu="${item}"]`); await page.waitForTimeout(350); if (!(await onView(view))) throw new Error('did not reach ' + view); };
+const openSettings = () => gotoPage('settings', 'view-settings');       // Settings, Profile and Passwords are full pages
+const openProfile = () => gotoPage('profile', 'view-profile');
+const openAbout = async () => { await openMenu(); await page.click('[data-menu="about"]'); await page.waitForTimeout(250); };
 const closeSettings = async () => { if (await settingsOpen()) { await page.click('#menuBtn'); await page.waitForTimeout(280); } };
 const pin = async (d) => { for (const c of d) await page.click(`#lockPad [data-k="${c}"]`); await page.waitForTimeout(350); };
 const lockShown = () => page.evaluate(() => !document.getElementById('lockScreen').hidden);
@@ -73,29 +72,42 @@ await step('settings dropdown: drops down from the top bar; ☰ toggles it; scri
   if (await settingsOpen()) throw new Error('Back did not close the dropdown');
   if (!(await page.evaluate(() => document.getElementById('view-tasks').classList.contains('on')))) throw new Error('Back left the screen underneath');
   if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger stuck active'); });
-await step('menu: Dashboard / Password / Theme / Settings / Profile / About app', async () => {
+await step('menu: Dashboard / Password / Theme / Mode / Settings / Profile / About app', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.waitForTimeout(100);
   await page.click('#menuBtn'); await page.waitForTimeout(300);
   const labels = await page.evaluate(() => [...document.querySelectorAll('#menuPage .menu-item .menu-label')].map(e => e.textContent.trim()));
-  if (labels.join('|') !== 'Dashboard|Password|Theme|Settings|Profile|About app') throw new Error('menu items: ' + labels.join('|'));
+  if (labels.join('|') !== 'Dashboard|Password|Theme|Mode|Settings|Profile|About app') throw new Error('menu items: ' + labels.join('|'));
   if (await page.evaluate(() => document.querySelector('[data-menu="dashboard"]').classList.contains('active'))) throw new Error('Dashboard highlighted while on Tasks');
   const t0 = await txt('#menuThemeValue'); await page.click('[data-menu="theme"]'); await page.waitForTimeout(150);
   if ((await txt('#menuThemeValue')) === t0) throw new Error('Theme did not change'); if (!(await settingsOpen())) throw new Error('menu closed on Theme');
   for (let i = 0; i < 14 && (await txt('#menuThemeValue')) !== t0; i++) { await page.click('[data-menu="theme"]'); await page.waitForTimeout(80); }
-  await page.click('[data-menu="password"]'); await page.waitForTimeout(200);
-  if (!(await vis('#passPanel')) || (await vis('#menuPage'))) throw new Error('password manager not shown');
-  await page.click('#passBack'); await page.waitForTimeout(200); if (!(await vis('#menuPage')) || (await vis('#passPanel'))) throw new Error('Back from Password did not return to the menu');
-  await page.click('[data-menu="settings"]'); await page.waitForTimeout(150); if (!(await vis('#settingsMain')) || (await vis('#menuPage'))) throw new Error('settings page not shown');
-  await page.click('#settingsMain [data-menu-back]'); await page.waitForTimeout(300); if (!(await vis('#menuPage'))) throw new Error('Back from Settings did not return to the menu'); if (!(await settingsOpen())) throw new Error('menu closed instead of going back');
-  await page.click('[data-menu="profile"]'); await page.waitForTimeout(150); if (!(await vis('#profilePanel'))) throw new Error('profile page not shown');
-  await page.click('#profilePanel [data-menu-back]'); await page.waitForTimeout(300);
-  await page.click('[data-menu="about"]'); await page.waitForTimeout(150); if (!(await vis('#aboutPanel')) || !(await txt('#aboutVersion')).includes('v1.5.0')) throw new Error('about page wrong: ' + await txt('#aboutVersion'));
+  // full pages
+  await page.click('[data-menu="password"]'); await page.waitForTimeout(350);
+  if (await settingsOpen() || !(await onView('view-passwords')) || !(await page.locator('#btnAddPass').isVisible())) throw new Error('Passwords is not a full page');
+  await page.click('#menuBtn'); await page.waitForTimeout(280); if (!(await page.evaluate(() => document.querySelector('[data-menu="password"]').classList.contains('active')))) throw new Error('Password not highlighted on its page'); await page.click('[data-menu="settings"]'); await page.waitForTimeout(350);
+  if (!(await onView('view-settings')) || !(await page.locator('#view-settings .hero h1').isVisible()) || !(await page.locator('#view-settings [data-set="theme"]').isVisible())) throw new Error('Settings is not a full page');
+  await page.click('#menuBtn'); await page.waitForTimeout(280); await page.click('[data-menu="profile"]'); await page.waitForTimeout(350);
+  if (!(await onView('view-profile')) || !(await page.locator('#pf-name').isVisible())) throw new Error('Profile is not a full page');
+  await page.evaluate(() => history.back()); await page.waitForTimeout(500);
+  if (!(await onView('view-settings'))) throw new Error('Back from Profile should return to Settings');
+  // About stays in the dropdown
+  await page.click('#menuBtn'); await page.waitForTimeout(280); await page.click('[data-menu="about"]'); await page.waitForTimeout(250);
+  if (!(await vis('#aboutPanel')) || !(await txt('#aboutVersion')).includes('v1.5.0')) throw new Error('about page wrong: ' + await txt('#aboutVersion'));
   await page.evaluate(() => history.back()); await page.waitForTimeout(400);
-  if (!(await settingsOpen()) || !(await vis('#menuPage'))) throw new Error('Back inside a page should return to the menu');
+  if (!(await settingsOpen()) || !(await vis('#menuPage'))) throw new Error('Back inside About should return to the menu');
   await page.evaluate(() => history.back()); await page.waitForTimeout(400); if (await settingsOpen()) throw new Error('second Back should close the menu');
-  await page.click('#menuBtn'); await page.waitForTimeout(300); await page.click('[data-menu="dashboard"]'); await page.waitForTimeout(400);
-  if (await settingsOpen()) throw new Error('Dashboard did not close the menu');
-  if (!(await page.evaluate(() => document.getElementById('view-home').classList.contains('on') && document.querySelector('[data-menu="dashboard"]').classList.contains('active')))) throw new Error('Dashboard did not open the home screen'); });
+  // Mode sits after Theme and flips between Regular and Chill, landing on the right dashboard
+  await page.click('#menuBtn'); await page.waitForTimeout(280);
+  if ((await txt('#menuModeValue')) !== 'Regular') throw new Error('mode value ' + await txt('#menuModeValue'));
+  await page.click('[data-menu="mode"]'); await page.waitForTimeout(500);
+  if (await settingsOpen() || !(await onView('view-chome')) || (await page.evaluate(() => document.documentElement.getAttribute('data-mode'))) !== 'chill') throw new Error('Mode did not switch to Chill');
+  await page.click('#menuBtn'); await page.waitForTimeout(280); if ((await txt('#menuModeValue')) !== 'Chill') throw new Error('mode value after switch ' + await txt('#menuModeValue'));
+  if (!(await page.evaluate(() => document.querySelector('[data-menu="dashboard"]').classList.contains('active')))) throw new Error('Dashboard not highlighted on Chill home');
+  await page.click('[data-menu="mode"]'); await page.waitForTimeout(500);
+  if (!(await onView('view-home')) || (await page.evaluate(() => document.documentElement.getAttribute('data-mode'))) === 'chill') throw new Error('Mode did not switch back to Regular');
+  await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.waitForTimeout(150);
+  await page.click('#menuBtn'); await page.waitForTimeout(280); await page.click('[data-menu="dashboard"]'); await page.waitForTimeout(400);
+  if (await settingsOpen() || !(await page.evaluate(() => document.getElementById('view-home').classList.contains('on') && document.querySelector('[data-menu="dashboard"]').classList.contains('active')))) throw new Error('Dashboard did not open the home screen'); });
 await step('add task', async () => { await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#btnAddTask'); await page.fill('#t-title', 'Buy milk'); await page.click('#saveTask'); await expectText('#taskList', 'Buy milk'); });
 await step('tasks: no-deadline option + ordering (dated by date, then no-deadline, done last)', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]');
@@ -176,7 +188,8 @@ await step('app lock: change PIN, then turn off', async () => {
   if ((await txt('#appLockValue')) !== 'Off') throw new Error('not off'); if (await page.evaluate(() => localStorage.getItem('nexus-applock-v1'))) throw new Error('lock record still stored');
   if (await page.locator('#lockExtras').isVisible()) throw new Error('options still visible'); });
 await step('greeting: can be switched off in Settings → Greeting (and uses the name)', async () => {
-  await openMenuPage('profile'); await page.click('[data-set="name"]'); await page.waitForTimeout(100);
+  await openProfile(); await page.fill('#pf-name', 'x'); await page.click('#pf-save'); await page.waitForTimeout(150);
+  if ((await txt('#profileName')) !== 'x') throw new Error('profile did not save');
   await openSettings(); if ((await txt('#greetValue')) !== 'On') throw new Error('greeting should default to On');
   await page.click('[data-set="greet"]'); await page.waitForTimeout(250);
   if (!(await page.locator('#greetPanel').isVisible())) throw new Error('greeting panel not shown');
@@ -245,7 +258,7 @@ await step('passwords: panel, add, detail, edit-open, delete', async () => {
   await openSettings(); await page.click('[data-set="passwords"]'); await page.click('#btnAddPass'); await page.fill('#pw-site', 'site.com'); await page.fill('#pw-user', 'me'); await page.fill('#pw-pass', 'secret'); await page.click('#savePass'); await expectText('#passList', 'site.com');
   await page.locator('#passList').getByText('site.com').first().click(); await page.click('#editPassBtn'); await page.click('#cancelPass');
   await page.locator('#passList').getByText('site.com').first().click(); await page.click('#delPassBtn'); await page.waitForTimeout(500);
-  if ((await txt('#passList')).includes('site.com')) throw new Error('password still listed'); await page.click('#passBack'); });
+  if ((await txt('#passList')).includes('site.com')) throw new Error('password still listed'); });
 await step('spending: detail dialog + category manager', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.click('#metricSpend'); await page.waitForSelector('#backdrop.open .dialog'); await page.click('#dlgClose'); await page.waitForTimeout(300);
   await openSettings(); await page.click('[data-set="spendcats"]'); await page.waitForSelector('#spCatName'); await page.fill('#spCatName', 'Snacks'); await page.click('#spCatAdd'); await page.waitForTimeout(300);
@@ -256,8 +269,9 @@ await step('wallet: second account + transfer', async () => {
 await step('settings: every row responds', async () => {
   await openSettings();
   for (const a of ['currency','timefmt','spendperiod','style','spendresetnow','clearlog','notify','classnotify','classnotifylead','theme']) { await page.click(`[data-set="${a}"]`); await page.waitForTimeout(120); }
-  await openMenuPage('profile'); for (const a of ['name','school']) { await page.click(`[data-set="${a}"]`); await page.waitForTimeout(120); }
-  await openMenuPage('about'); await page.click('[data-set="terms"]'); await page.waitForTimeout(300); const gate = await page.locator('#tosGate').isVisible();
+  await openProfile(); await page.fill('#pf-name', 'x'); await page.fill('#pf-school', 'x'); await page.click('#pf-save'); await page.waitForTimeout(150);
+  if ((await txt('#profileSchool')) !== 'x' || (await page.evaluate(() => document.getElementById('drawerSchool').textContent)) !== 'x') throw new Error('profile not reflected');
+  await openAbout(); await page.click('[data-set="terms"]'); await page.waitForTimeout(300); const gate = await page.locator('#tosGate').isVisible();
   if (gate) { await page.goBack().catch(() => {}); await page.waitForTimeout(300); if (await page.locator('#tosGate').isVisible()) await page.click('#tosAccept').catch(() => {}); }
   return 'termsReview=' + gate; });
 await step('browser back returns to previous screen', async () => {
@@ -386,6 +400,18 @@ await step('audio controls: shuffle, repeat, seek, favourite, delete playing tra
   if (await page.evaluate(() => !document.getElementById('nowPlaying').hidden)) { await page.evaluate(() => document.getElementById('npMore').click()); await page.waitForTimeout(250); await page.evaluate(() => document.getElementById('nmDel').click()); await page.waitForTimeout(800); await page.goBack().catch(() => {}); await page.waitForTimeout(300); }
   const mini = await page.evaluate(() => document.getElementById('miniPlayer').hidden);
   return `seek→${t.toFixed(2)}s favTile=${fav} miniHiddenAfterDelete=${mini}`; });
+await step('chill dashboard: Recently Added, Music, Watch, Read, Favorites — in that order', async () => {
+  await page.click('.rail-chill [data-go="chome"]'); await page.waitForTimeout(500);
+  const heads = await page.evaluate(() => [...document.querySelectorAll('#view-chome .ch-shelf-head h2')].map(h => h.textContent.trim()));
+  if (heads.join('|') !== 'Recently Added|Music|Watch|Read|Favorites') throw new Error('shelf order: ' + heads.join('|'));
+  const y = await page.evaluate(() => ['chillRecent', 'chMusic', 'chWatch', 'chRead', 'chFavs'].map(id => document.getElementById(id).getBoundingClientRect().top));
+  if (!(y[0] < y[1] && y[1] < y[2] && y[2] < y[3] && y[3] < y[4])) throw new Error('shelves not top-to-bottom: ' + y.join(','));
+  const n = await page.evaluate(() => ({ recent: document.querySelectorAll('#chillRecent .cstrip-item').length, music: document.querySelectorAll('#chMusic .cstrip-item').length, read: document.querySelectorAll('#chRead .cstrip-item').length, old: document.querySelectorAll('#chMetrics, .chill-quick-tile').length }));
+  if (n.recent < 1 || n.read < 1) throw new Error('shelves are empty: ' + JSON.stringify(n));
+  if (!(await page.evaluate(() => !!document.querySelector('#chMusic .cstrip-item, #chMusic .empty')))) throw new Error('music shelf missing');
+  if (n.old) throw new Error('old tiles still on the dashboard');
+  if (!(await page.locator('#chWatch').innerText()).length) throw new Error('watch shelf has no content at all');
+  return JSON.stringify(n); });
 await step('chill home tiles, prev track, chapter picker', async () => {
   await page.click('.rail-chill [data-go="chome"]'); await page.waitForTimeout(400);
   for (const sel of ['[data-chgo]', '[data-fav]', '[data-read]', '[data-ct]']) {

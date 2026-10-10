@@ -1,10 +1,16 @@
 import { Component } from '../../core/Component.js';
-import { COLORS } from '../../core/constants.js';
 import { Util } from '../../core/Util.js';
 import { MangaModel } from './manga/MangaModel.js';
 import { Icons } from '../../ui/Icons.js';
 import { Dom } from '../../core/Dom.js';
 
+const PER_SHELF = 12;
+const GLYPH = { music: '♪', video: '', manga: '📖', story: '✎' };
+
+/**
+ * Chill dashboard: a greeting, then five shelves in this order —
+ * Recently Added · Music · Watch · Read · Favorites.
+ */
 export class ChillHome extends Component {
   async playTrackById(tid) {
     this.app.audio.refreshQueue();
@@ -12,104 +18,96 @@ export class ChillHome extends Component {
     await this.app.audio.playChillTrack(i); this.app.nowPlaying.openNowPlaying(1);
   }
 
-  drawChillHome() {
-    const mEl = Dom.byId('chMetrics'); if (!mEl) return;
-    const media = this.state.chillMedia, music = media.filter(m => m.type === 'music'), videos = media.filter(m => m.type === 'video'),
-      series = media.filter(m => m.type === 'manga'), stories = this.state.chillStories;
-    const total = music.length + videos.length + series.length + stories.length;
-    const go = (view) => document.querySelector(`.rail-chill [data-go="${view}"]`)?.click();
-    const pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  /** Opens one item from a shelf, whatever its type. */
+  openItem(type, id) {
+    if (type === 'music') this.playTrackById(id);
+    else if (type === 'video') this.app.video.openVideo(id);
+    else if (type === 'manga') this.app.reader.openManga(id);
+    else this.app.stories.showStoryDetail(id);
+  }
 
-    // greeting, same style as Regular Home
+  drawChillHome() {
+    const host = Dom.byId('chillRecent'); if (!host) return;
+    const media = this.state.chillMedia, stories = this.state.chillStories || [];
+    const music = media.filter(m => m.type === 'music'), videos = media.filter(m => m.type === 'video'), series = media.filter(m => m.type === 'manga');
+    const total = music.length + videos.length + series.length + stories.length;
+    const pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const byAdded = (a, b) => (b.dateAdded || b.ts || 0) - (a.dateAdded || a.ts || 0);
+
+    // greeting
     const hr = new Date().getHours(), hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
     Dom.byId('chGreet').textContent = this.state.name ? `${hello}, Master ${this.state.name}` : hello;
     Dom.byId('chGreetSub').textContent = total
       ? `${pl(music.length, 'song')} · ${pl(videos.length, 'video')} · ${pl(series.length, 'series')} — all on this device.`
       : 'Your downtime stuff — music, shows, and reading. Tap Import to add some.';
 
-    // status tiles (same look as Regular Home)
-    const tile = (cls, label, value, color, to, primary) => `
-    <div class="metric${primary ? ' primary' : ''}${cls ? ' ' + cls : ''}" data-chgo="${to}" style="cursor:pointer">
-      <div class="accent" style="background:${color}"></div>
-      <div class="label">${label}</div><div class="value">${value}</div>
+    // shelf cards. `extra` adds data attributes (data-fav / data-read) alongside the generic data-ct/data-cid.
+    const card = (it) => `
+    <div class="cstrip-item" data-ct="${it.type}" data-cid="${it.id}" ${it.extra || ''}>
+      <div class="thumb cs" ${it.type !== 'story' ? `data-thumb="${it.id}"` : ''} style="${Util.artStyle(it.title)}"><span>${GLYPH[it.type]}</span></div>
+      <div class="cs-t">${Util.esc(it.title)}</div><div class="cs-s">${Util.esc(it.sub)}</div>
+      ${it.pct != null ? `<div class="cprog"><i style="width:${Math.max(0, Math.min(100, it.pct))}%"></i></div>` : ''}
     </div>`;
-    const parts = [[music.length, COLORS[3], 'Songs'], [videos.length, COLORS[1], 'Videos'], [series.length, COLORS[4], 'Manga'], [stories.length, COLORS[0], 'Stories']];
-    let acc = 0;
-    const stops = parts.filter(p => p[0]).map(([n, col]) => { const s = acc; acc += n / total * 100; return `${col} ${s}% ${acc}%`; });
-    const pie = total ? `background:conic-gradient(${stops.join(', ')});` : `background:${COLORS[7]};opacity:0.25;`;
-    const center = total ? `<div class="donut-center"><div class="donut-total">${total}</div><div class="donut-sub">items</div></div>` : `<div class="donut-center"><div class="donut-sub">Empty</div></div>`;
-    const legend = parts.map(([n, col, nm]) => `<span title="${nm}"><b style="color:${col}">●</b> ${n}</span>`).join('');
-    mEl.innerHTML =
-      tile('', 'In Your Library', total, COLORS[4], 'import', true) +
-      tile('metric-opentasks', 'Songs', music.length, COLORS[3], 'music') +
-      tile('metric-classesleft', 'Videos', videos.length, COLORS[1], 'watch') +
-      `<div class="metric metric-spend" data-chgo="import" style="cursor:pointer" title="Library mix: songs, videos, manga, stories">
-       <div class="spend-pie" style="${pie}"><div class="donut-hole">${center}</div></div>
-       <div class="donut-legend">${legend}</div></div>` +
-      tile('', 'Manga series', series.length, COLORS[4], 'read') +
-      tile('', 'Stories', stories.length, COLORS[0], 'read');
-    mEl.querySelectorAll('[data-chgo]').forEach(t => { t.onclick = () => go(t.dataset.chgo); });
+    const shelf = (items, empty) => items.length ? `<div class="cstrip">${items.slice(0, PER_SHELF).map(card).join('')}</div>` : `<div class="empty">${empty}</div>`;
+    const ago = (t) => (t ? ' · ' + Util.ago(t) : '');
 
-    const thumbRow = (m, main, sub, extra, attrs) => `
-    <div class="chill-row" ${attrs}>
-      <div class="thumb sq" data-thumb="${m.id}" style="${Util.artStyle(m.title)}"><span>${m.type === 'music' ? '♪' : m.type === 'video' ? '' : '📖'}</span></div>
-      <div class="chill-row-main"><div class="chill-row-title">${Util.esc(main)}</div><div class="chill-row-sub">${Util.esc(sub)}</div>${extra || ''}</div>
-    </div>`;
-    const bar = (pct, id) => `<div class="cprog"><i ${id ? `id="${id}"` : ''} style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>`;
+    // 1 · Recently Added (everything, newest first)
+    const recent = [
+      ...media.map(m => ({ id: m.id, title: m.title, type: m.type, ts: m.dateAdded || 0, sub: (m.type === 'music' ? Util.artistOf(m) : m.type === 'manga' ? MangaModel.mangaSub(m) : 'Video') + ago(m.dateAdded) })),
+      ...stories.map(s => ({ id: s.id, title: s.title, type: 'story', ts: s.ts || 0, sub: 'Story' + ago(s.ts) }))
+    ].sort((a, b) => b.ts - a.ts);
+    host.innerHTML = shelf(recent, 'Nothing imported yet — tap Import to add music, videos or manga');
 
-    // Now Playing
+    // 2 · Music (now playing on top, then your songs, newest first)
     const cur = this.app.audio.chillCurId && this.app.audio.chillAudio.getAttribute('src') ? media.find(x => x.id === this.app.audio.chillCurId) : null;
-    const nowEl = Dom.byId('chNow');
+    let nowHtml = '';
     if (cur) {
-      const d = this.app.audio.chillAudio.duration || 0;
-      nowEl.innerHTML = `<div class="chill-row" id="chNowRow">
+      const a = this.app.audio.chillAudio, d = a.duration || 0;
+      nowHtml = `<div class="chill-row ch-now" id="chNowRow">
       <div class="thumb sq" data-thumb="${cur.id}" style="${Util.artStyle(cur.title)}"><span>♪</span></div>
       <div class="chill-row-main"><div class="chill-row-title">${Util.esc(cur.title)}</div>
-        <div class="chill-row-sub">${Util.esc(Util.artistOf(cur))} · ${this.app.audio.chillAudio.paused ? 'Paused' : 'Playing'}</div>${bar(d ? this.app.audio.chillAudio.currentTime / d * 100 : 0, 'chNpBar')}</div>
-      <button type="button" class="ch-pp" id="chNowPP" title="Play / pause">${Icons.svgI(this.app.audio.chillAudio.paused ? Icons.IC.play : Icons.IC.pause, 28)}</button></div>`;
-      Dom.byId('chNowRow').onclick = (e) => { if (!e.target.closest('#chNowPP')) this.app.nowPlaying.openNowPlaying(1); };
-      Dom.byId('chNowPP').onclick = this.app.audio.togglePlay;
-    } else nowEl.innerHTML = '<div class="empty">Nothing playing — pick a song in Music</div>';
+        <div class="chill-row-sub">${Util.esc(Util.artistOf(cur))} · ${a.paused ? 'Paused' : 'Playing'}</div>
+        <div class="cprog"><i id="chNpBar" style="width:${d ? Math.min(100, a.currentTime / d * 100) : 0}%"></i></div></div>
+      <button type="button" class="ch-pp" id="chNowPP" title="Play / pause">${Icons.svgI(a.paused ? Icons.IC.play : Icons.IC.pause, 28)}</button></div>`;
+    }
+    Dom.byId('chMusic').innerHTML = nowHtml + shelf(
+      [...music].sort(byAdded).map(m => ({ id: m.id, title: m.title, type: 'music', sub: Util.artistOf(m) })),
+      'No songs yet — import some to see them here');
 
-    // Continue Reading
-    const reading = series.map(m => ({ m, pr: (this.state.chillProgress || {})[m.id] })).filter(x => x.pr && MangaModel.mangaChapters(x.m)[x.pr.ci])
-      .sort((a, b) => (b.pr.t || 0) - (a.pr.t || 0)).slice(0, 3);
-    const rEl = Dom.byId('chReading');
-    rEl.innerHTML = reading.length ? reading.map(({ m, pr }) => {
-      const ch = MangaModel.mangaChapters(m)[pr.ci], n = (ch.pages || []).length || 1;
-      return thumbRow(m, m.title, `${ch.name} · page ${Math.min(n, pr.page + 1)} of ${n}`, bar((pr.page + 1) / n * 100), `data-read="${m.id}"`);
-    }).join('') : `<div class="empty">${series.length ? 'Open a series in Read — it will wait for you here' : 'No manga yet'}</div>`;
-    rEl.querySelectorAll('[data-read]').forEach(r => { r.onclick = () => this.app.reader.openManga(r.dataset.read); });
+    // 3 · Watch (videos you paused part-way first, with progress, then the rest)
+    const resumable = videos.filter(Util.resumable).sort((a, b) => (b.seen || 0) - (a.seen || 0));
+    const rest = videos.filter(v => !resumable.includes(v)).sort(byAdded);
+    Dom.byId('chWatch').innerHTML = shelf([
+      ...resumable.map(v => ({ id: v.id, title: v.title, type: 'video', sub: `${Util.fmtT(v.pos)} of ${Util.fmtT(v.dur)}`, pct: v.pos / v.dur * 100 })),
+      ...rest.map(v => ({ id: v.id, title: v.title, type: 'video', sub: v.dur ? Util.fmtT(v.dur) : 'Video' }))
+    ], 'No videos yet — import some to see them here');
 
-    // Continue Watching
-    const watching = videos.filter(Util.resumable).sort((a, b) => (b.seen || 0) - (a.seen || 0)).slice(0, 3);
-    const wEl = Dom.byId('chWatching');
-    wEl.innerHTML = watching.length ? watching.map(v => thumbRow(v, v.title, `${Util.fmtT(v.pos)} of ${Util.fmtT(v.dur)}`, bar(v.pos / v.dur * 100), `data-watch2="${v.id}"`)).join('')
-      : `<div class="empty">${videos.length ? 'Videos you pause part-way show up here' : 'No videos yet'}</div>`;
-    wEl.querySelectorAll('[data-watch2]').forEach(r => { r.onclick = () => this.app.video.openVideo(r.dataset.watch2); });
+    // 4 · Read (series you are part-way through first, with progress, then other series, then stories)
+    const prog = this.state.chillProgress || {};
+    const reading = series.map(m => ({ m, pr: prog[m.id] })).filter(x => x.pr && MangaModel.mangaChapters(x.m)[x.pr.ci]).sort((a, b) => (b.pr.t || 0) - (a.pr.t || 0));
+    const readingIds = new Set(reading.map(x => x.m.id));
+    Dom.byId('chRead').innerHTML = shelf([
+      ...reading.map(({ m, pr }) => { const ch = MangaModel.mangaChapters(m)[pr.ci], n = (ch.pages || []).length || 1;
+        return { id: m.id, title: m.title, type: 'manga', sub: `${ch.name} · p. ${Math.min(n, pr.page + 1)}/${n}`, pct: (pr.page + 1) / n * 100, extra: `data-read="${m.id}"` }; }),
+      ...series.filter(m => !readingIds.has(m.id)).sort(byAdded).map(m => ({ id: m.id, title: m.title, type: 'manga', sub: MangaModel.mangaSub(m) })),
+      ...[...stories].sort(byAdded).map(s => ({ id: s.id, title: s.title, type: 'story', sub: 'Story' }))
+    ], 'No manga or stories yet — import some to see them here');
 
-    // Favourites
-    const favs = music.filter(m => m.fav).slice(0, 4);
-    const fEl = Dom.byId('chFavs');
-    fEl.innerHTML = favs.length ? favs.map(m => thumbRow(m, m.title, Util.artistOf(m), '', `data-fav="${m.id}"`)).join('')
-      : '<div class="empty">Tap ♡ in the music player to add favourites</div>';
-    fEl.querySelectorAll('[data-fav]').forEach(r => { r.onclick = () => this.playTrackById(r.dataset.fav); });
+    // 5 · Favorites (anything you hearted — songs for now)
+    Dom.byId('chFavs').innerHTML = shelf(
+      media.filter(m => m.fav).sort(byAdded).map(m => ({ id: m.id, title: m.title, type: m.type, sub: m.type === 'music' ? Util.artistOf(m) : 'Video', extra: `data-fav="${m.id}"` })),
+      'Tap ♡ in the music player to add favorites');
 
-    // Recently Added
-    const items = [
-      ...media.map(m => ({ id: m.id, title: m.title, type: m.type, ts: m.dateAdded || 0, sub: m.type === 'music' ? Util.artistOf(m) : m.type === 'manga' ? MangaModel.mangaSub(m) : 'Video' })),
-      ...stories.map(s => ({ id: s.id, title: s.title, type: 'story', ts: s.ts || 0, sub: 'Story' })),
-    ].sort((a, b) => b.ts - a.ts).slice(0, 10);
-    const rc = Dom.byId('chillRecent');
-    rc.innerHTML = items.length ? `<div class="cstrip">${items.map(it => `
-    <div class="cstrip-item" data-ct="${it.type}" data-cid="${it.id}">
-      <div class="thumb cs" ${it.type !== 'story' ? `data-thumb="${it.id}"` : ''} style="${Util.artStyle(it.title)}"><span>${{ music: '♪', video: '', manga: '📖', story: '✎' }[it.type]}</span></div>
-      <div class="cs-t">${Util.esc(it.title)}</div><div class="cs-s">${Util.esc(it.sub)}${it.ts ? ' · ' + Util.ago(it.ts) : ''}</div>
-    </div>`).join('')}</div>` : '<div class="empty">Nothing imported yet</div>';
-    rc.querySelectorAll('[data-ct]').forEach(el => {
-      el.onclick = () => { const t = el.dataset.ct, id = el.dataset.cid;
-        if (t === 'music') this.playTrackById(id); else if (t === 'video') this.app.video.openVideo(id); else if (t === 'manga') this.app.reader.openManga(id); else this.app.stories.showStoryDetail(id); };
-    });
-    this.app.thumbs.hydrateThumbs(Dom.byId('view-chome'));
+    // behaviour
+    const view = Dom.byId('view-chome');
+    view.onclick = (e) => {
+      const go = e.target.closest('[data-chgo]');
+      if (go) { document.querySelector(`.rail-chill [data-go="${go.dataset.chgo}"]`)?.click(); return; }
+      if (e.target.closest('#chNowPP')) return;
+      if (e.target.closest('#chNowRow')) { this.app.nowPlaying.openNowPlaying(1); return; }
+      const it = e.target.closest('[data-ct]'); if (it) this.openItem(it.dataset.ct, it.dataset.cid);
+    };
+    const pp = Dom.byId('chNowPP'); if (pp) pp.onclick = this.app.audio.togglePlay;
+    this.app.thumbs.hydrateThumbs(view);
   }
 }

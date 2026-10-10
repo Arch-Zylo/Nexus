@@ -2022,3 +2022,23 @@ a { color: inherit; text-decoration: none; }
 .about-name { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.1em; }
 .about-ver { color: var(--fog); font-size: 0.85rem; }
 .about-text { font-size: 0.85rem; color: var(--fog); line-height: 1.5; margin: 0 4px 14px; }
+
+/* ---------- Chill dashboard shelves ---------- */
+.ch-shelf { margin-bottom: 22px; }
+.ch-shelf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.ch-shelf-head h2 { font-size: 1.05rem; font-weight: 700; }
+.ch-seeall { background: none; border: 0; color: var(--gold); font-size: 0.82rem; padding: 4px 0; }
+.ch-seeall:hover { color: var(--snow); }
+.ch-shelf .empty { padding: 14px 4px; }
+.ch-now { margin-bottom: 12px; }
+.cstrip-item .cprog { margin-top: 5px; }
+
+/* ---------- Profile page ---------- */
+.profile-card { display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 14px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line-soft); }
+.profile-card-name { font-size: 1.2rem; font-weight: 700; }
+.profile-card-sub { font-size: 0.85rem; color: var(--fog); margin-top: 2px; }
+.profile-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.pf-stat { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 14px; padding: 12px 6px; text-align: center; }
+.pf-stat-n { font-size: 1.3rem; font-weight: 700; color: var(--gold); }
+.pf-stat-l { font-size: 0.68rem; color: var(--mist); margin-top: 2px; }
+.profile-form { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 16px; padding: 16px; max-width: 560px; }

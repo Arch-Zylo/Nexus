@@ -1,5 +1,15 @@
 # Nexus — Work Log
 
+## Update 21 — Full pages, Mode in the menu, new Chill dashboard (still v1.5.0 beta)
+- [x] **Password, Settings and Profile are now full pages** (`view-passwords`, `view-settings`, `view-profile`) opened from the menu; the dropdown only holds the menu and the About page. They work with the Android Back button like any other screen (`navRestore` handles views without a rail button). The Password Manager row in Settings opens the Passwords page. The password manager's own Back button was removed
+- [x] **Profile page** (`features/regular/ProfileView.js`): avatar, name and school edited inline with Save (replaces the prompt-based rows), plus counts of classes, open tasks, notes and people. The menu's profile card shows the saved name/school
+- [x] **Mode** added to the menu right after Theme: one tap switches Regular ⇄ Chill, closes the menu and lands on the matching dashboard (value shown on the row)
+- [x] The menu highlights the page you are on (Dashboard / Password / Settings / Profile)
+- [x] **Chill dashboard rebuilt** (`ChillHome.js`): greeting, then **Recently Added → Music → Watch → Read → Favorites** as horizontal shelves with "See all" links; the old status tiles, quick tiles and the Now Playing / Continue panels were replaced (the playing song is the first card of the Music shelf with its progress bar and play/pause; paused videos and part-read series come first in Watch / Read with progress bars). Favorites shows anything with a heart — only songs can be hearted today
+- [x] Fixed while testing: a permanently-open `.sheet` is read by the sheet watcher as an open layer and breaks Back — the profile form uses its own class
+- [x] Tests: full pages, menu order and actions, Mode both ways, Back through pages, profile save, shelf order — 55/55 pass
+**Not verified:** on a real Android device
+
 ## Update 20 — Menu in the reference style (still v1.5.0 beta)
 - [x] The ☰ dropdown is now a menu like the reference screenshot: a left-aligned panel (84% of the width on phones, 340 px on larger screens) that drops from the top bar, profile card on top, then **Dashboard · Password · Theme · Settings · Profile · About app** with icons, a gold highlight on Dashboard when you are on the home screen, and a footer with the version. The ☰ stays in view (turns into an X) and toggles it
 - [x] Item actions: Dashboard → home (or Chill home) and closes the menu; Password → the password manager; Theme → cycles the theme in place (value shown on the row); Settings / Profile / About app → pages inside the dropdown with a ‹ Back to the menu. Android Back steps back through them (page → menu → closed)

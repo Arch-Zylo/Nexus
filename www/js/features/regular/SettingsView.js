@@ -6,7 +6,7 @@ export class SettingsView extends Component {
   /** Wires DOM events and applies initial state. Called once by App.start(). */
   init() {
     /* Settings — event delegation so clicks always work */
-    Dom.byId('view-config')?.addEventListener('click', (e) => {
+    const onRowClick = (e) => {
       const el = e.target.closest('[data-set]');
       if (!el) return;
       e.preventDefault();
@@ -14,18 +14,6 @@ export class SettingsView extends Component {
       const action = el.dataset.set;
       if (action === 'theme') { this.app.theme.nextTheme(); this.refreshSettingsUI(); }
       else if (action === 'style') { this.app.theme.nextStyle(); this.refreshSettingsUI(); }
-      else if (action === 'name') {
-        const v = prompt('Your name (shown on Home):', this.state.name || '');
-        if (v === null) return;
-        this.state.name = v.trim();
-        this.app.store.save(); this.refreshSettingsUI(); this.app.shell.tick();
-      }
-      else if (action === 'school') {
-        const v = prompt('School name:', this.state.school || '');
-        if (v === null) return;
-        this.state.school = v.trim();
-        this.app.store.save(); this.refreshSettingsUI(); this.app.shell.tick();
-      }
       else if (action === 'currency') {
         const i = CURRENCIES.indexOf(this.state.currency || '$');
         this.state.currency = CURRENCIES[(i + 1) % CURRENCIES.length];
@@ -49,14 +37,14 @@ export class SettingsView extends Component {
       else if (action === 'notify') this.app.notifications.toggleNotify();
       else if (action === 'classnotify') this.app.notifications.toggleClassNotify();
       else if (action === 'classnotifylead') this.app.notifications.cycleClassNotifyLead();
-      else if (action === 'passwords') this.app.passwords.showPassPanel();
+      else if (action === 'passwords') this.app.shell.navigate('passwords');
       else if (action === 'greet') this.app.greetPanel.show();
       else if (action === 'applock') this.app.lock.toggle();
       else if (action === 'lockchange') this.app.lock.changePin();
       else if (action === 'lockdelay') this.app.lock.cycleDelay();
       else if (action === 'locknow') this.app.lock.lockNow();
       else if (action === 'mode') {
-        // Same behaviour as the Theme row: one tap flips it, the drawer stays open
+        // Same behaviour as the Theme row: one tap flips it and you stay on this page
         this.app.mode.applyMode(this.state.mode === 'chill' ? 'regular' : 'chill');
         this.refreshSettingsUI();
       }
@@ -90,7 +78,8 @@ export class SettingsView extends Component {
       }
       else if (action === 'wipe') this.app.backup.wipeAllData();
       else if (action === 'terms') this.app.terms.showTos(true);
-    });
+    };
+    ['view-settings', 'aboutPanel'].forEach(id => Dom.byId(id)?.addEventListener('click', onRowClick));
   }
 
   refreshSettingsUI() {
@@ -103,9 +92,7 @@ export class SettingsView extends Component {
     set('drawerName', this.state.name || 'Student');
     set('drawerSchool', this.state.school || 'Set your name & school');
     set('drawerAvatar', initial);
-    set('profileName', this.state.name || 'Student');
-    set('profileSchool', this.state.school || 'No school set');
-    set('profileAvatar', initial);
+    set('menuModeValue', this.state.mode === 'chill' ? 'Chill' : 'Regular');
     ['menuVersion', 'aboutVersion', 'appVersionValue'].forEach(id => set(id, APP_VERSION_LABEL));
     const lk = this.app.lock;
     set('appLockValue', lk && lk.enabled ? 'On' : 'Off');
