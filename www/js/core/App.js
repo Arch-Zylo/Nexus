@@ -8,6 +8,7 @@ import { Dialog } from './Dialog.js';
 import { TermsGate } from './TermsGate.js';
 import { AppLock } from './AppLock.js';
 import { Greeter } from './Greeter.js';
+import { GreetingPanel } from '../features/regular/GreetingPanel.js';
 import { Shell } from './Shell.js';
 import { NotificationService } from './NotificationService.js';
 import { MediaDB } from '../storage/MediaDB.js';
@@ -59,6 +60,7 @@ export class App {
     this.terms = new TermsGate(this);
     this.lock = new AppLock(this);
     this.greeter = new Greeter(this);
+    this.greetPanel = new GreetingPanel(this);
     this.shell = new Shell(this);
     this.notifications = new NotificationService(this);
     this.mediaDb = new MediaDB(this);
@@ -122,6 +124,7 @@ export class App {
     this.terms.init();
     this.lock.init();
     this.greeter.init();
+    this.greetPanel.init();
     this.boot();
   }
 

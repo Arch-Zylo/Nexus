@@ -50,7 +50,7 @@ export class SettingsView extends Component {
       else if (action === 'classnotify') this.app.notifications.toggleClassNotify();
       else if (action === 'classnotifylead') this.app.notifications.cycleClassNotifyLead();
       else if (action === 'passwords') this.app.passwords.showPassPanel();
-      else if (action === 'greet') this.app.greeter.toggle();
+      else if (action === 'greet') this.app.greetPanel.show();
       else if (action === 'applock') this.app.lock.toggle();
       else if (action === 'lockchange') this.app.lock.changePin();
       else if (action === 'lockdelay') this.app.lock.cycleDelay();
@@ -111,6 +111,7 @@ export class SettingsView extends Component {
     set('spendPeriodValue', { all: 'Never', week: 'Every week', month: 'Every month', year: 'Every year' }[this.state.spendPeriod || 'all']);
     set('spendCatsValue', String(this.app.spending.spendCats().length));
     set('greetValue', this.state.greet === false ? 'Off' : 'On');
+    set('greetOnValue', this.state.greet === false ? 'Off' : 'On');
     set('notifyValue', this.state.notify ? 'On' : 'Off');
     set('classNotifyValue', this.state.classNotify ? 'On' : 'Off');
     set('classNotifyLeadValue', (Number(this.state.classNotifyLead) || 10) + ' min before');

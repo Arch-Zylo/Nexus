@@ -1,5 +1,19 @@
 # Nexus — Work Log
 
+## Update 19 — Custom greetings + dropdown Settings (still v1.5.0 beta)
+- [x] **Settings → Greeting** (new panel, `features/regular/GreetingPanel.js`): upload, replace, play and remove a clip for Morning / Afternoon / Evening / Night plus "Any time", "Play greeting now", "Remove all my clips", and the on/off switch. Validation: audio only, ≤ 6 MB, ≤ 30 s, unreadable files rejected with a message. Clips live in the on-device media database (`greet:<slot>`, with name and length), so they are not in JSON/zip backups and are cleared by Wipe all data / restoring a backup
+- [x] Playback order (`Greeter.playFile`): your clip for the current time → your "Any time" clip → default `assets/greeting.mp3` → built-in voice (wording changes by time of day). The `assets/greetings/` folder idea from Update 18 is gone — uploads replace it
+- [x] **Settings now drops down** from the top bar instead of sliding in from the side: full width on phones (bottom bar stays visible), a 440 px panel under the ☰ on larger screens; 0.18 s fade/drop, none with reduced-motion. The ☰ stays in view (turns into an X) and toggles it; tapping the dimmed area or Android Back also closes it. The old drawer header and ✕ were removed
+- [x] Tests: dropdown geometry/toggle/scrim/Back, greeting panel (upload per slot, fallback chain, replace, remove, rejection, remove all) — 53/53 pass
+**Not verified:** on a real Android device (file picker, audio formats the phone's WebView can't decode)
+
+## Update 18 — Greeting clip + time of day (still v1.5.0 beta)
+- [x] Supplied clip cleaned up and shipped as `www/assets/greeting.mp3` (leading silence trimmed, loudness normalised from about -30 dB to -16 dB, short fades, mono 96 kbps, 3.8 s, 45 KB)
+- [x] **Time of day**: `Greeter.slot()` → morning 05–11:59, afternoon 12–16:59, evening 17–20:59, night 21–04:59. Plays `assets/greetings/<slot>.mp3` if present, else `assets/greeting.mp3`, else the built-in voice, whose wording also follows the time of day. Only the all-day clip exists so far — add the four per-time files to `www/assets/greetings/` (see the README.txt there) when you have them
+- Not done on purpose: no new speech was generated or cloned in the character's voice; the clip is the user's own file and only edited (trim/normalise). Bundling it in an app that is shared or published may need the rights holder's permission
+- [x] Tests: clip order and wording for all four time slots (fake clock), plus the earlier greeting checks — 52/52 pass; real clip playback and per-time clip priority/fallback checked separately
+**Not verified:** on a real Android device
+
 ## Update 17 — Greeting voice (still v1.5.0 beta)
 - [x] **Spoken greeting once per app launch** (`core/Greeter.js`). Plays once when Nexus opens and never again while the app stays open (returning from the background is not a new launch). Waits for the Terms gate on first run and for the app lock (greets after unlocking). If the system blocks autoplay, it plays on the first tap instead. Settings → Preferences → **Greeting voice** (On by default; turning it on plays a preview)
 - Voice: if `www/assets/greeting.mp3` exists it plays that; otherwise the device's built-in speech (English, higher pitch, slower rate) says "Ara ara... welcome back, <name>. I've been waiting for you." It does not imitate any real voice. Built-in speech depends on the phone's text-to-speech and can be missing inside some Android WebViews — a supplied clip is the reliable route

@@ -517,14 +517,9 @@
   </div>
 </div>
 
-<!-- Settings drawer (opened from the ☰ button in the top bar) -->
+<!-- Settings dropdown (drops down from the top bar when ☰ is tapped) -->
 <div class="drawer-scrim" id="drawerScrim"></div>
 <aside class="drawer" id="settingsDrawer" aria-label="Settings" aria-hidden="true">
-  <div class="drawer-head">
-    <img src="assets/nexus-icon.png" alt="" class="drawer-logo">
-    <div class="drawer-brand"><b>NEXUS</b><span>Settings</span></div>
-    <button type="button" class="btn-icon" id="drawerClose" aria-label="Close settings">✕</button>
-  </div>
   <div class="drawer-profile">
     <span class="drawer-avatar" id="drawerAvatar">N</span>
     <div class="drawer-who"><div class="drawer-name" id="drawerName">Student</div><div class="drawer-school" id="drawerSchool">Set your name below</div></div>
@@ -593,7 +588,7 @@
             <span class="set-value" id="timefmtValue">12-hour</span>
           </button>
           <button type="button" class="set-row" data-set="greet">
-            <span class="set-label">Greeting voice</span>
+            <span class="set-label">Greeting</span>
             <span class="set-value" id="greetValue">On</span>
           </button>
           <button type="button" class="set-row" data-set="notify">
@@ -718,6 +713,26 @@
               <div class="mode-card-desc">Music, videos, manga and stories you've imported — for downtime.</div>
             </button>
           </div>
+        </div>
+        <!-- Greeting panel (shown when Greeting is tapped) -->
+        <div id="greetPanel" class="set-panel" hidden>
+          <div style="margin-bottom:12px;">
+            <button type="button" class="sort-link" id="greetBack">‹ Back</button>
+          </div>
+          <div class="set-list">
+            <button type="button" class="set-row" id="greetToggle">
+              <span class="set-label">Play when Nexus opens</span>
+              <span class="set-value" id="greetOnValue">On</span>
+            </button>
+          </div>
+          <p class="set-hint">Add your own audio for each time of day. Nexus plays the clip for the current time, then your “Any time” clip, then its default greeting.</p>
+          <div id="greetSlots"></div>
+          <p class="greet-msg" id="greetMsg" role="status" aria-live="polite"></p>
+          <div class="set-list set-list-gap">
+            <button type="button" class="set-row" id="greetTest"><span class="set-label">Play greeting now</span><span class="set-chevron">›</span></button>
+            <button type="button" class="set-row" id="greetReset"><span class="set-label">Remove all my clips</span><span class="set-chevron">›</span></button>
+          </div>
+          <input type="file" id="greetFile" accept="audio/*" hidden>
         </div>
   </div>
 </aside>

@@ -21,7 +21,6 @@ export class Shell extends Component {
     });
     Dom.byId('menuBtn')?.addEventListener('click', this.toggleSettings);
     Dom.byId('drawerScrim')?.addEventListener('click', this.closeSettings);
-    Dom.byId('drawerClose')?.addEventListener('click', this.closeSettings);
     document.querySelectorAll('[data-go-chill]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
@@ -68,6 +67,7 @@ export class Shell extends Component {
     this.settingsOpen = true;
     this.app.passwords.hidePassPanel();
     this.app.mode.hideModePanel();
+    this.app.greetPanel.hide();
     this.app.settings.refreshSettingsUI();
     Dom.byId('view-config').scrollTop = 0;
     d.classList.add('open'); d.setAttribute('aria-hidden', 'false');

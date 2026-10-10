@@ -23,7 +23,7 @@ async function step(name, fn) {
 }
 const settingsOpen = () => page.evaluate(() => document.getElementById('settingsDrawer').classList.contains('open'));
 const openSettings = async () => { if (!(await settingsOpen())) await page.click('#menuBtn'); await page.waitForTimeout(280); };
-const closeSettings = async () => { if (await settingsOpen()) { await page.click('#drawerClose'); await page.waitForTimeout(280); } };
+const closeSettings = async () => { if (await settingsOpen()) { await page.click('#menuBtn'); await page.waitForTimeout(280); } };
 const pin = async (d) => { for (const c of d) await page.click(`#lockPad [data-k="${c}"]`); await page.waitForTimeout(350); };
 const lockShown = () => page.evaluate(() => !document.getElementById('lockScreen').hidden);
 const txt = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
@@ -34,11 +34,12 @@ const progSeen = async (key) => { const a = await page.evaluate((k) => window.__
 if (process.env.COVER) await page.coverage.startJSCoverage({ resetOnNavigation: false });
 await page.addInitScript(() => { window.__spoken = []; try { speechSynthesis.getVoices = () => []; speechSynthesis.speak = (u) => { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend({}), 0); }; speechSynthesis.cancel = () => {}; } catch {} });
 const spoken = () => page.evaluate(() => window.__spoken.slice());
+await page.route(/\/assets\/greetings?(\/|\.mp3)/, (r) => r.fulfill({ status: 404, body: '' }));
 await page.goto(url); await page.waitForTimeout(600);
 await step('boot + accept terms', async () => { await page.check('#tosAgree'); await page.click('#tosAccept'); await page.waitForTimeout(300); if (await page.locator('#tosGate').isVisible()) throw new Error('gate still visible'); });
 await step('greeting: spoken once after the terms, never again while the app stays open', async () => {
   await page.waitForTimeout(1600);
-  let sp = await spoken(); if (sp.length !== 1 || !sp[0].includes('welcome back')) throw new Error('expected one greeting, got ' + JSON.stringify(sp));
+  let sp = await spoken(); if (sp.length !== 1 || !/Ara ara/.test(sp[0])) throw new Error('expected one greeting, got ' + JSON.stringify(sp));
   await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.waitForTimeout(900);
   sp = await spoken(); if (sp.length !== 1) throw new Error('greeting repeated: ' + JSON.stringify(sp)); });
@@ -47,21 +48,22 @@ await step('regular nav views', async () => {
     await page.click(`.rail:not(.rail-chill) [data-go="${go}"]`); await page.waitForTimeout(120);
     if (!(await page.evaluate((g) => document.getElementById('view-' + g).classList.contains('on'), go))) throw new Error('view not shown: ' + go);
   } });
-await step('settings drawer: slides over the current screen; closes via ✕, scrim and Back', async () => {
+await step('settings dropdown: drops down from the top bar; ☰ toggles it; scrim and Back close it', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.waitForTimeout(100);
   if (await page.locator('.rail [data-go="config"]').count()) throw new Error('settings still in the rail');
-  if (await page.evaluate(() => { const r = document.getElementById('settingsDrawer').getBoundingClientRect(); return r.right > 0 && getComputedStyle(document.getElementById('settingsDrawer')).visibility !== 'hidden'; })) throw new Error('drawer visible while closed');
+  if (await page.evaluate(() => getComputedStyle(document.getElementById('settingsDrawer')).visibility !== 'hidden')) throw new Error('dropdown visible while closed');
   await page.click('#menuBtn'); await page.waitForTimeout(300);
-  const st = await page.evaluate(() => { const d = document.getElementById('settingsDrawer'), r = d.getBoundingClientRect(); return { open: d.classList.contains('open'), left: Math.round(r.left), w: Math.round(r.width), exp: document.getElementById('menuBtn').getAttribute('aria-expanded'), tasks: document.getElementById('view-tasks').classList.contains('on') }; });
-  if (!st.open || st.left !== 0 || st.exp !== 'true') throw new Error('drawer not open: ' + JSON.stringify(st));
+  const st = await page.evaluate(() => { const d = document.getElementById('settingsDrawer'), r = d.getBoundingClientRect(), t = document.querySelector('.top').getBoundingClientRect(); return { open: d.classList.contains('open'), top: Math.round(r.top), left: Math.round(r.left), topBarBottom: Math.round(t.bottom), exp: document.getElementById('menuBtn').getAttribute('aria-expanded'), tasks: document.getElementById('view-tasks').classList.contains('on') }; });
+  if (!st.open || st.exp !== 'true') throw new Error('dropdown not open: ' + JSON.stringify(st));
+  if (st.top !== st.topBarBottom || st.left !== 0) throw new Error('not dropping from the top bar: ' + JSON.stringify(st));
   if (!st.tasks) throw new Error('current screen was replaced instead of staying underneath');
-  if (!(await page.locator('#settingsDrawer .set-row[data-set="theme"]').isVisible())) throw new Error('settings rows not visible in drawer');
-  await page.click('#drawerClose'); await page.waitForTimeout(300);
-  if (await settingsOpen()) throw new Error('✕ did not close');
-  await page.click('#menuBtn'); await page.waitForTimeout(300); await page.mouse.click(382, 500); await page.waitForTimeout(300);
+  if (!(await page.locator('#settingsDrawer .set-row[data-set="theme"]').isVisible())) throw new Error('settings rows not visible');
+  await page.click('#menuBtn'); await page.waitForTimeout(300);
+  if (await settingsOpen()) throw new Error('☰ did not close the dropdown');
+  await page.click('#menuBtn'); await page.waitForTimeout(300); await page.mouse.click(200, 825); await page.waitForTimeout(300);
   if (await settingsOpen()) throw new Error('scrim tap did not close');
   await page.click('#menuBtn'); await page.waitForTimeout(300); await page.evaluate(() => history.back()); await page.waitForTimeout(400);
-  if (await settingsOpen()) throw new Error('Back did not close the drawer');
+  if (await settingsOpen()) throw new Error('Back did not close the dropdown');
   if (!(await page.evaluate(() => document.getElementById('view-tasks').classList.contains('on')))) throw new Error('Back left the screen underneath');
   if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger stuck active'); });
 await step('add task', async () => { await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#btnAddTask'); await page.fill('#t-title', 'Buy milk'); await page.click('#saveTask'); await expectText('#taskList', 'Buy milk'); });
@@ -143,14 +145,53 @@ await step('app lock: change PIN, then turn off', async () => {
   await openSettings(); await page.click('[data-set="applock"]'); await pin('5678');
   if ((await txt('#appLockValue')) !== 'Off') throw new Error('not off'); if (await page.evaluate(() => localStorage.getItem('nexus-applock-v1'))) throw new Error('lock record still stored');
   if (await page.locator('#lockExtras').isVisible()) throw new Error('options still visible'); });
-await step('greeting: can be switched off in Settings (and personalised with the name)', async () => {
+await step('greeting: can be switched off in Settings → Greeting (and uses the name)', async () => {
   await openSettings(); await page.click('[data-set="name"]'); await page.waitForTimeout(100);
   if ((await txt('#greetValue')) !== 'On') throw new Error('greeting should default to On');
-  await page.click('[data-set="greet"]'); if ((await txt('#greetValue')) !== 'Off') throw new Error('did not switch off');
+  await page.click('[data-set="greet"]'); await page.waitForTimeout(250);
+  if (!(await page.locator('#greetPanel').isVisible())) throw new Error('greeting panel not shown');
+  await page.click('#greetToggle'); if ((await txt('#greetOnValue')) !== 'Off') throw new Error('did not switch off');
   await page.reload(); await page.waitForTimeout(1600); if ((await spoken()).length) throw new Error('greeted although switched off');
-  await openSettings(); await page.click('[data-set="greet"]'); await page.waitForTimeout(1500);
+  await openSettings(); await page.click('[data-set="greet"]'); await page.waitForTimeout(250); await page.click('#greetToggle'); await page.waitForTimeout(1500);
   const sp = await spoken(); if (sp.length !== 1) throw new Error('switching on should preview once: ' + JSON.stringify(sp));
-  if (!/welcome back, x\./.test(sp[0])) throw new Error('name missing from greeting: ' + sp[0]); });
+  if (!/, x\./.test(sp[0])) throw new Error('name missing from greeting: ' + sp[0]); });
+await step('greeting: built-in wording follows the time of day when there are no clips', async () => {
+  const cases = [['2026-10-10T08:00:00', 'good morning'], ['2026-10-10T14:00:00', 'good afternoon'], ['2026-10-10T19:00:00', 'good evening'], ['2026-10-10T23:30:00', "it's late"]];
+  for (const [when, phrase] of cases) {
+    const p2 = await ctx.newPage(); const reqs = [];
+    await p2.addInitScript(() => { window.__spoken = []; localStorage.setItem('nexus-tos-v2', '1'); speechSynthesis.getVoices = () => []; speechSynthesis.speak = (u) => { window.__spoken.push(u.text); }; speechSynthesis.cancel = () => {}; });
+    await p2.route(/\/assets\/greeting\.mp3/, (r) => { reqs.push(new URL(r.request().url()).pathname); r.fulfill({ status: 404, body: '' }); });
+    await p2.clock.setFixedTime(new Date(when)); await p2.goto(url); await p2.waitForTimeout(1700);
+    const sp = await p2.evaluate(() => window.__spoken);
+    if (sp.length !== 1 || !sp[0].toLowerCase().includes(phrase)) throw new Error(when + ': wrong wording ' + JSON.stringify(sp));
+    if (reqs.length !== 1) throw new Error('expected the default clip to be tried once: ' + JSON.stringify(reqs));
+    await p2.close();
+  } });
+await step('greeting settings: upload per time of day, replace, remove, validation', async () => {
+  const clip = path.join(root, 'assets/greeting.mp3');
+  const upload = async (slot, file) => { const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click(`[data-g="upload"][data-slot="${slot}"]`)]); await fc.setFiles(file); await page.waitForTimeout(700); };
+  const played = async (when) => { const p2 = await ctx.newPage();
+    await p2.addInitScript(() => { window.__spoken = []; window.__src = []; localStorage.setItem('nexus-tos-v2', '1'); speechSynthesis.getVoices = () => []; speechSynthesis.speak = (u) => { window.__spoken.push(u.text); }; speechSynthesis.cancel = () => {}; const pl = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { window.__src.push(this.src.split(':')[0]); return pl.call(this); }; });
+    await p2.route(/\/assets\/greeting\.mp3/, (r) => r.fulfill({ status: 404, body: '' }));
+    await p2.clock.setFixedTime(new Date(when)); await p2.goto(url); await p2.waitForTimeout(1700);
+    const r = { src: await p2.evaluate(() => window.__src), spoken: await p2.evaluate(() => window.__spoken) }; await p2.close(); return r; };
+  await openSettings(); await page.click('[data-set="greet"]'); await page.waitForTimeout(250);
+  if ((await page.locator('#greetSlots .greet-slot').count()) !== 5) throw new Error('expected 5 slots');
+  await upload('evening', clip);
+  if (!(await txt('[data-slot-row="evening"]')).includes('greeting.mp3')) throw new Error('clip name not shown: ' + await txt('[data-slot-row="evening"]'));
+  if (!(await page.locator('[data-g="remove"][data-slot="evening"]').count())) throw new Error('no Remove button for a saved clip');
+  let r = await played('2026-10-10T19:00:00'); if (r.src[0] !== 'blob' || r.spoken.length) throw new Error('evening clip not used: ' + JSON.stringify(r));
+  r = await played('2026-10-10T08:00:00'); if (r.src.includes('blob') || r.spoken.length !== 1) throw new Error('morning should fall back to the default (voice here): ' + JSON.stringify(r));
+  await upload('all', clip);
+  r = await played('2026-10-10T08:00:00'); if (r.src[0] !== 'blob' || r.spoken.length) throw new Error('"Any time" clip not used in the morning: ' + JSON.stringify(r));
+  await page.click('[data-g="remove"][data-slot="evening"]'); await page.waitForTimeout(300);
+  if ((await txt('[data-slot-row="evening"]')).includes('greeting.mp3')) throw new Error('evening clip still listed');
+  await upload('morning', path.join(root, 'index.html'));
+  if (!(await txt('#greetMsg')).includes('audio')) throw new Error('non-audio file not rejected: ' + await txt('#greetMsg'));
+  if (await page.locator('[data-g="remove"][data-slot="morning"]').count()) throw new Error('a rejected file was saved');
+  await page.click('#greetReset'); await page.waitForTimeout(500);
+  if (await page.locator('#greetSlots [data-g="remove"]').count()) throw new Error('clips remain after Remove all');
+  r = await played('2026-10-10T08:00:00'); if (r.src.includes('blob') || r.spoken.length !== 1) throw new Error('should be back to the default after Remove all: ' + JSON.stringify(r)); });
 await step('events: add 2, open edit, delete one', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('[data-tt-mode="events"]');
   await page.click('#btnAddEvent'); await page.fill('#e-title', 'Exam'); await page.fill('#e-date', '2026-12-01'); await page.fill('#e-time', '10:00'); await page.click('#saveEvent'); await expectText('#eventList', 'Exam');

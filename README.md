@@ -24,7 +24,7 @@ as an installable Android app.
   birthdays.
 - **Understand where your money goes.** Track accounts, income, expenses, loans
   and transfers, and see your spending broken down by category.
-- **A greeting when you open the app.** Nexus says hello once each time it is opened (not again while it stays open, and not when you switch back to it). It uses the device's built-in speech with a soft, playful line and your name. To use your own clip instead, put an audio file at `www/assets/greeting.mp3` and it plays in place of the built-in voice. Switch it off in **Settings → Preferences → Greeting voice**.
+- **A greeting when you open the app.** Nexus plays a short greeting once each time it is opened (not again while it stays open, and not when you switch back to it). In **Settings → Greeting** you can upload your own audio clip (up to 30 seconds / 6 MB) for the morning (05:00–11:59), afternoon (12:00–16:59), evening (17:00–20:59) and night (21:00–04:59), plus an "Any time" clip for anything without its own. For the current time Nexus plays your clip for that time, then your "Any time" clip, then its default clip (`www/assets/greeting.mp3`), then the phone's built-in voice. Clips are stored on the device only, are not part of backups, and each can be played, replaced or removed. The same screen has the on/off switch.
 - **Keep your logins safe.** A built-in password manager lives in Settings, and you can turn on an optional 4-digit PIN lock (**Settings → Security → App lock**) that asks for the PIN when Nexus opens and when you return after being away (immediately, 1 minute or 5 minutes). It keeps other people out of the app; it does not encrypt your data. Forgot the PIN? The only way back in is to erase the app's data from the lock screen.
 
 ## Features
@@ -37,7 +37,7 @@ as an installable Android app.
 | **People** | Contacts with birthdays and ages |
 | **Notes** | Quick notes |
 | **Wallet** | Multiple accounts, income and expenses, loans, transfers, spending by category |
-| **Settings** (☰ button in the top bar — slides in as a drawer over the current screen) | Themes and styles, name and school, currency, 12/24-hour time, reminders, spending options, backup (export/import), password manager and the optional app lock |
+| **Settings** (☰ button in the top bar — drops down over the current screen; tap ☰ again to close) | Themes and styles, name and school, currency, 12/24-hour time, greeting clips, reminders, spending options, backup (export/import), password manager and the optional app lock |
 
 ## What's new
 
