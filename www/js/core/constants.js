@@ -6,6 +6,7 @@
    ============================================================ */
 export const KEY = 'nexus-v1';
 export const BACKUP_KEY = 'nexus-v1-backup';
+export const LOCK_KEY = 'nexus-applock-v1';   // app-lock PIN hash + settings; kept out of the main store so it never lands in backups
 export const COLORS = [
   '#f5c15a','#f07178','#b794f6','#6bb3f0','#5dcea6','#e8a87c','#c38d9e','#41b3a3',
   '#ff6b6b','#feca57','#48dbfb','#1dd1a1','#5f27cd','#ff9ff3','#54a0ff','#00d2d3',

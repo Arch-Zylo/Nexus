@@ -10,6 +10,26 @@
 <canvas id="circuitBg" aria-hidden="true"></canvas>
 <canvas id="starryBg" aria-hidden="true"></canvas>
 <canvas id="dragonBg" aria-hidden="true"></canvas>
+<div id="lockScreen" class="lock-screen" hidden role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+  <div class="lock-card">
+    <img src="assets/nexus-icon.png" alt="" class="lock-logo">
+    <h1 id="lockTitle">Nexus is locked</h1>
+    <p class="lock-sub" id="lockSub">Enter your PIN</p>
+    <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p class="lock-msg" id="lockMsg" role="status" aria-live="polite"></p>
+    <div class="lock-pad" id="lockPad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <span></span><button type="button" data-k="0">0</button><button type="button" data-k="back" aria-label="Delete">⌫</button>
+    </div>
+    <div class="lock-foot">
+      <button type="button" class="lock-link" id="lockCancel" hidden>Cancel</button>
+      <button type="button" class="lock-link" id="lockForgot">Forgot PIN?</button>
+    </div>
+  </div>
+</div>
+<script>try{if(localStorage.getItem('nexus-applock-v1'))document.getElementById('lockScreen').hidden=false;}catch(e){}</script>
 <div id="tosGate" class="tos-gate" hidden>
   <div class="tos-card">
     <img src="assets/nexus-icon.png" alt="" class="tos-logo">
@@ -356,180 +376,6 @@
         </div>
       </section>
 
-      <!-- CONFIG -->
-      <section class="view" id="view-config">
-        <div class="hero">
-          <h1>Settings</h1>
-        </div>
-
-        <div id="settingsMain">
-        <p class="set-group-label">Appearance</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="theme">
-            <span class="set-label">Theme</span>
-            <span class="set-value" id="themeValue">Night</span>
-          </button>
-          <button type="button" class="set-row" data-set="style">
-            <span class="set-label">Style</span>
-            <span class="set-value" id="styleValue">Soft</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Profile</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="name">
-            <span class="set-label">Your name</span>
-            <span class="set-value" id="nameValue">Not set</span>
-          </button>
-          <button type="button" class="set-row" data-set="school">
-            <span class="set-label">School</span>
-            <span class="set-value" id="schoolValue">Not set</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Security</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="passwords">
-            <span class="set-label">Password Manager</span>
-            <span class="set-chevron">›</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Preferences</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="currency">
-            <span class="set-label">Currency</span>
-            <span class="set-value" id="currencyValue">$</span>
-          </button>
-          <button type="button" class="set-row" data-set="timefmt">
-            <span class="set-label">Time format</span>
-            <span class="set-value" id="timefmtValue">12-hour</span>
-          </button>
-          <button type="button" class="set-row" data-set="notify">
-            <span class="set-label">Due-task reminders</span>
-            <span class="set-value" id="notifyValue">Off</span>
-          </button>
-          <button type="button" class="set-row" data-set="classnotify">
-            <span class="set-label">Timetable reminders</span>
-            <span class="set-value" id="classNotifyValue">Off</span>
-          </button>
-          <button type="button" class="set-row" data-set="classnotifylead">
-            <span class="set-label">Default reminder time</span>
-            <span class="set-value" id="classNotifyLeadValue">10 min before</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Spending</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="spendperiod">
-            <span class="set-label">Reset spending chart</span>
-            <span class="set-value" id="spendPeriodValue">Never</span>
-          </button>
-          <button type="button" class="set-row" data-set="spendresetnow">
-            <span class="set-label">Reset chart now</span>
-            <span class="set-chevron">›</span>
-          </button>
-          <button type="button" class="set-row" data-set="spendcats">
-            <span class="set-label">Spending categories</span>
-            <span class="set-value" id="spendCatsValue">6</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Tools</p>
-        <div class="set-list">
-          <button type="button" class="set-row" data-set="mode">
-            <span class="set-label">Mode</span>
-            <span class="set-value" id="modeValue">Regular</span>
-          </button>
-          <div class="set-row set-row-split">
-            <span class="set-label">Backup</span>
-            <span class="set-actions">
-              <button type="button" class="set-action" data-set="export">Export</button>
-              <span class="set-sep">·</span>
-              <button type="button" class="set-action" data-set="import">Import</button>
-            </span>
-          </div>
-          <button type="button" class="set-row" data-set="clearlog">
-            <span class="set-label">Clear activity log</span>
-            <span class="set-chevron">›</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">Danger zone</p>
-        <div class="set-list">
-          <button type="button" class="set-row set-danger" data-set="wipe">
-            <span class="set-label">Wipe all data</span>
-            <span class="set-chevron">›</span>
-          </button>
-        </div>
-
-        <p class="set-group-label">About</p>
-        <div class="set-list">
-          <div class="set-row set-row-static">
-            <span class="set-label">App</span>
-            <span class="set-value">Nexus Student OS</span>
-          </div>
-          <div class="set-row set-row-static">
-            <span class="set-label">Version</span>
-            <span class="set-value" id="appVersionValue">v1.5.0 (beta)</span>
-          </div>
-          <div class="set-row set-row-static">
-            <span class="set-label">Storage</span>
-            <span class="set-value" id="storageValue">—</span>
-          </div>
-          <button type="button" class="set-row" data-set="terms">
-            <span class="set-label">Terms &amp; Conditions</span>
-            <span class="set-chevron">›</span>
-          </button>
-        </div>
-
-        <input type="file" id="importFile" accept=".json,.nexusbackup,.zip,application/json,application/zip" hidden>
-        <p id="dataMsg" style="font-size:0.8rem;margin-top:12px;color:var(--mint);"></p>
-        </div><!-- /settingsMain -->
-
-        <!-- Password panel (shown when Password Manager is tapped) -->
-        <div id="passPanel" class="set-panel" hidden>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <button type="button" class="sort-link" id="passBack">‹ Back</button>
-            <button class="btn btn-gold" id="btnAddPass" style="padding:8px 14px;font-size:0.82rem;">+ Add</button>
-          </div>
-          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
-          <div class="sheet" id="sheetPass">
-            <input type="hidden" id="pw-edit-id" value="">
-            <div class="fields" style="grid-template-columns:1fr;">
-              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
-              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
-              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
-              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
-            </div>
-            <div class="form-foot">
-              <button class="btn btn-gold" id="savePass">Save</button>
-              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
-              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
-            </div>
-          </div>
-          <div id="passList"></div>
-        </div>
-
-        <!-- Mode panel (shown when Mode is tapped) -->
-        <div id="modePanel" class="set-panel" hidden>
-          <div style="margin-bottom:12px;">
-            <button type="button" class="sort-link" id="modeBack">‹ Back</button>
-          </div>
-          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:16px;">Switch how Nexus looks and what it does. You can switch back anytime — nothing is deleted.</p>
-          <div class="mode-pick">
-            <button type="button" class="mode-card" data-mode-pick="regular">
-              <div class="mode-card-title">Regular</div>
-              <div class="mode-card-desc">Classes, tasks, wallet, notes, people — the full student planner.</div>
-            </button>
-            <button type="button" class="mode-card" data-mode-pick="chill">
-              <div class="mode-card-title">Chill</div>
-              <div class="mode-card-desc">Music, videos, manga and stories you've imported — for downtime.</div>
-            </button>
-          </div>
-        </div>
-      </section>
-
       <!-- CHILL HOME -->
       <section class="view" id="view-chome">
         <div class="hero">
@@ -670,6 +516,207 @@
     </div>
   </div>
 </div>
+
+<!-- Settings drawer (opened from the ☰ button in the top bar) -->
+<div class="drawer-scrim" id="drawerScrim"></div>
+<aside class="drawer" id="settingsDrawer" aria-label="Settings" aria-hidden="true">
+  <div class="drawer-head">
+    <img src="assets/nexus-icon.png" alt="" class="drawer-logo">
+    <div class="drawer-brand"><b>NEXUS</b><span>Settings</span></div>
+    <button type="button" class="btn-icon" id="drawerClose" aria-label="Close settings">✕</button>
+  </div>
+  <div class="drawer-profile">
+    <span class="drawer-avatar" id="drawerAvatar">N</span>
+    <div class="drawer-who"><div class="drawer-name" id="drawerName">Student</div><div class="drawer-school" id="drawerSchool">Set your name below</div></div>
+  </div>
+  <div class="drawer-body" id="view-config">
+        <div id="settingsMain">
+        <p class="set-group-label">Appearance</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="theme">
+            <span class="set-label">Theme</span>
+            <span class="set-value" id="themeValue">Night</span>
+          </button>
+          <button type="button" class="set-row" data-set="style">
+            <span class="set-label">Style</span>
+            <span class="set-value" id="styleValue">Soft</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Profile</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="name">
+            <span class="set-label">Your name</span>
+            <span class="set-value" id="nameValue">Not set</span>
+          </button>
+          <button type="button" class="set-row" data-set="school">
+            <span class="set-label">School</span>
+            <span class="set-value" id="schoolValue">Not set</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Security</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="passwords">
+            <span class="set-label">Password Manager</span>
+            <span class="set-chevron">›</span>
+          </button>
+          <button type="button" class="set-row" data-set="applock">
+            <span class="set-label">App lock</span>
+            <span class="set-value" id="appLockValue">Off</span>
+          </button>
+        </div>
+        <div class="set-list set-list-gap" id="lockExtras" hidden>
+          <button type="button" class="set-row" data-set="lockdelay">
+            <span class="set-label">Auto-lock</span>
+            <span class="set-value" id="lockDelayValue">After 1 minute</span>
+          </button>
+          <button type="button" class="set-row" data-set="lockchange">
+            <span class="set-label">Change PIN</span>
+            <span class="set-chevron">›</span>
+          </button>
+          <button type="button" class="set-row" data-set="locknow">
+            <span class="set-label">Lock now</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+        <p class="set-hint">Optional. Asks for a 4-digit PIN when you open Nexus. It keeps other people out of the app; it doesn't encrypt your data.</p>
+
+        <p class="set-group-label">Preferences</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="currency">
+            <span class="set-label">Currency</span>
+            <span class="set-value" id="currencyValue">$</span>
+          </button>
+          <button type="button" class="set-row" data-set="timefmt">
+            <span class="set-label">Time format</span>
+            <span class="set-value" id="timefmtValue">12-hour</span>
+          </button>
+          <button type="button" class="set-row" data-set="notify">
+            <span class="set-label">Due-task reminders</span>
+            <span class="set-value" id="notifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotify">
+            <span class="set-label">Timetable reminders</span>
+            <span class="set-value" id="classNotifyValue">Off</span>
+          </button>
+          <button type="button" class="set-row" data-set="classnotifylead">
+            <span class="set-label">Default reminder time</span>
+            <span class="set-value" id="classNotifyLeadValue">10 min before</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Spending</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="spendperiod">
+            <span class="set-label">Reset spending chart</span>
+            <span class="set-value" id="spendPeriodValue">Never</span>
+          </button>
+          <button type="button" class="set-row" data-set="spendresetnow">
+            <span class="set-label">Reset chart now</span>
+            <span class="set-chevron">›</span>
+          </button>
+          <button type="button" class="set-row" data-set="spendcats">
+            <span class="set-label">Spending categories</span>
+            <span class="set-value" id="spendCatsValue">6</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Tools</p>
+        <div class="set-list">
+          <button type="button" class="set-row" data-set="mode">
+            <span class="set-label">Mode</span>
+            <span class="set-value" id="modeValue">Regular</span>
+          </button>
+          <div class="set-row set-row-split">
+            <span class="set-label">Backup</span>
+            <span class="set-actions">
+              <button type="button" class="set-action" data-set="export">Export</button>
+              <span class="set-sep">·</span>
+              <button type="button" class="set-action" data-set="import">Import</button>
+            </span>
+          </div>
+          <button type="button" class="set-row" data-set="clearlog">
+            <span class="set-label">Clear activity log</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">Danger zone</p>
+        <div class="set-list">
+          <button type="button" class="set-row set-danger" data-set="wipe">
+            <span class="set-label">Wipe all data</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <p class="set-group-label">About</p>
+        <div class="set-list">
+          <div class="set-row set-row-static">
+            <span class="set-label">App</span>
+            <span class="set-value">Nexus Student OS</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Version</span>
+            <span class="set-value" id="appVersionValue">v1.5.0 (beta)</span>
+          </div>
+          <div class="set-row set-row-static">
+            <span class="set-label">Storage</span>
+            <span class="set-value" id="storageValue">—</span>
+          </div>
+          <button type="button" class="set-row" data-set="terms">
+            <span class="set-label">Terms &amp; Conditions</span>
+            <span class="set-chevron">›</span>
+          </button>
+        </div>
+
+        <input type="file" id="importFile" accept=".json,.nexusbackup,.zip,application/json,application/zip" hidden>
+        <p id="dataMsg" style="font-size:0.8rem;margin-top:12px;color:var(--mint);"></p>
+        </div><!-- /settingsMain -->
+
+        <!-- Password panel (shown when Password Manager is tapped) -->
+        <div id="passPanel" class="set-panel" hidden>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <button type="button" class="sort-link" id="passBack">‹ Back</button>
+            <button class="btn btn-gold" id="btnAddPass" style="padding:8px 14px;font-size:0.82rem;">+ Add</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:12px;">Stored on this device only.</p>
+          <div class="sheet" id="sheetPass">
+            <input type="hidden" id="pw-edit-id" value="">
+            <div class="fields" style="grid-template-columns:1fr;">
+              <div class="field"><label>Site / App</label><input id="pw-site" placeholder="e.g. Gmail, Facebook"></div>
+              <div class="field"><label>Username / Email</label><input id="pw-user" placeholder="you@email.com"></div>
+              <div class="field"><label>Password</label><input id="pw-pass" type="password" placeholder="••••••••"></div>
+              <div class="field"><label>Notes</label><input id="pw-notes" placeholder="Optional"></div>
+            </div>
+            <div class="form-foot">
+              <button class="btn btn-gold" id="savePass">Save</button>
+              <button class="btn btn-ghost" id="cancelPass">Cancel</button>
+              <button class="btn btn-ghost" id="deletePass" style="color:var(--coral);border-color:rgba(240,113,120,0.35);" hidden>Delete</button>
+            </div>
+          </div>
+          <div id="passList"></div>
+        </div>
+
+        <!-- Mode panel (shown when Mode is tapped) -->
+        <div id="modePanel" class="set-panel" hidden>
+          <div style="margin-bottom:12px;">
+            <button type="button" class="sort-link" id="modeBack">‹ Back</button>
+          </div>
+          <p style="font-size:0.8rem;color:var(--mist);margin-bottom:16px;">Switch how Nexus looks and what it does. You can switch back anytime — nothing is deleted.</p>
+          <div class="mode-pick">
+            <button type="button" class="mode-card" data-mode-pick="regular">
+              <div class="mode-card-title">Regular</div>
+              <div class="mode-card-desc">Classes, tasks, wallet, notes, people — the full student planner.</div>
+            </button>
+            <button type="button" class="mode-card" data-mode-pick="chill">
+              <div class="mode-card-title">Chill</div>
+              <div class="mode-card-desc">Music, videos, manga and stories you've imported — for downtime.</div>
+            </button>
+          </div>
+        </div>
+  </div>
+</aside>
 
 <!-- Modal -->
 <div class="backdrop" id="backdrop">

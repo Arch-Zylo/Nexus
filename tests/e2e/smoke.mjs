@@ -17,10 +17,15 @@ page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/
 page.on('dialog', d => d.accept(d.type() === 'prompt' ? (/WIPE/.test(d.message()) ? 'WIPE' : 'x') : undefined));
 const results = []; let seenProg = {};
 async function step(name, fn) {
+  await closeSettings().catch(() => {});
   try { const r = await fn(); results.push(['PASS', name, r === undefined ? '' : String(r)]); }
   catch (e) { results.push(['FAIL', name, String(e.message).split('\n').slice(0,3).join(' / ').slice(0, 260)]); }
 }
-const openSettings = async () => { if (!(await page.evaluate(() => document.getElementById('view-config').classList.contains('on')))) await page.click('#menuBtn'); await page.waitForTimeout(60); };
+const settingsOpen = () => page.evaluate(() => document.getElementById('settingsDrawer').classList.contains('open'));
+const openSettings = async () => { if (!(await settingsOpen())) await page.click('#menuBtn'); await page.waitForTimeout(280); };
+const closeSettings = async () => { if (await settingsOpen()) { await page.click('#drawerClose'); await page.waitForTimeout(280); } };
+const pin = async (d) => { for (const c of d) await page.click(`#lockPad [data-k="${c}"]`); await page.waitForTimeout(350); };
+const lockShown = () => page.evaluate(() => !document.getElementById('lockScreen').hidden);
 const txt = (sel) => page.evaluate((s) => document.querySelector(s)?.innerText || '', sel);
 const expectText = async (sel, t, ms = 4000) => { await page.waitForFunction(([s, t]) => (document.querySelector(s)?.innerText || '').includes(t), [sel, t], { timeout: ms }); };
 const progWatcher = (key) => page.evaluate((k) => { window.__prog = window.__prog || {}; window.__prog[k] = []; const iv = setInterval(() => { const c = document.querySelector('.nx-prog.show'); if (c) window.__prog[k].push(c.querySelector('.nx-prog-label')?.textContent + '|' + c.querySelector('.nx-prog-pct')?.textContent); }, 40); setTimeout(() => clearInterval(iv), 15000); }, key);
@@ -34,18 +39,23 @@ await step('regular nav views', async () => {
     await page.click(`.rail:not(.rail-chill) [data-go="${go}"]`); await page.waitForTimeout(120);
     if (!(await page.evaluate((g) => document.getElementById('view-' + g).classList.contains('on'), go))) throw new Error('view not shown: ' + go);
   } });
-await step('hamburger: opens Settings, X state, second tap returns to previous screen', async () => {
+await step('settings drawer: slides over the current screen; closes via ✕, scrim and Back', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.waitForTimeout(100);
   if (await page.locator('.rail [data-go="config"]').count()) throw new Error('settings still in the rail');
-  await page.click('#menuBtn'); await page.waitForTimeout(150);
-  if (!(await page.evaluate(() => document.getElementById('view-config').classList.contains('on')))) throw new Error('settings not shown');
-  if (!(await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active')))) throw new Error('hamburger not active');
-  await page.click('#menuBtn'); await page.waitForTimeout(150);
-  if (!(await page.evaluate(() => document.getElementById('view-tasks').classList.contains('on')))) throw new Error('did not return to Tasks');
-  if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger still active');
-  if (!(await page.evaluate(() => document.querySelector('.rail:not(.rail-chill) [data-go="tasks"]').classList.contains('active')))) throw new Error('Tasks rail button not re-highlighted');
-  await page.click('#menuBtn'); await page.waitForTimeout(100); await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.waitForTimeout(100);
-  if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger stuck active after tapping a rail button'); });
+  if (await page.evaluate(() => { const r = document.getElementById('settingsDrawer').getBoundingClientRect(); return r.right > 0 && getComputedStyle(document.getElementById('settingsDrawer')).visibility !== 'hidden'; })) throw new Error('drawer visible while closed');
+  await page.click('#menuBtn'); await page.waitForTimeout(300);
+  const st = await page.evaluate(() => { const d = document.getElementById('settingsDrawer'), r = d.getBoundingClientRect(); return { open: d.classList.contains('open'), left: Math.round(r.left), w: Math.round(r.width), exp: document.getElementById('menuBtn').getAttribute('aria-expanded'), tasks: document.getElementById('view-tasks').classList.contains('on') }; });
+  if (!st.open || st.left !== 0 || st.exp !== 'true') throw new Error('drawer not open: ' + JSON.stringify(st));
+  if (!st.tasks) throw new Error('current screen was replaced instead of staying underneath');
+  if (!(await page.locator('#settingsDrawer .set-row[data-set="theme"]').isVisible())) throw new Error('settings rows not visible in drawer');
+  await page.click('#drawerClose'); await page.waitForTimeout(300);
+  if (await settingsOpen()) throw new Error('✕ did not close');
+  await page.click('#menuBtn'); await page.waitForTimeout(300); await page.mouse.click(382, 500); await page.waitForTimeout(300);
+  if (await settingsOpen()) throw new Error('scrim tap did not close');
+  await page.click('#menuBtn'); await page.waitForTimeout(300); await page.evaluate(() => history.back()); await page.waitForTimeout(400);
+  if (await settingsOpen()) throw new Error('Back did not close the drawer');
+  if (!(await page.evaluate(() => document.getElementById('view-tasks').classList.contains('on')))) throw new Error('Back left the screen underneath');
+  if (await page.evaluate(() => document.getElementById('menuBtn').classList.contains('active'))) throw new Error('hamburger stuck active'); });
 await step('add task', async () => { await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('#btnAddTask'); await page.fill('#t-title', 'Buy milk'); await page.click('#saveTask'); await expectText('#taskList', 'Buy milk'); });
 await step('tasks: no-deadline option + ordering (dated by date, then no-deadline, done last)', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="tasks"]');
@@ -78,6 +88,51 @@ await step('add account', async () => { await page.click('.rail:not(.rail-chill)
 await step('add class', async () => { await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('#btnAddClass'); await page.fill('#c-sub', 'Math'); await page.fill('#c-start', '09:00'); await page.fill('#c-end', '10:00'); await page.click('#saveClass'); await expectText('#board', 'Math'); });
 await step('add event', async () => { await page.click('#btnAddEvent').catch(()=>{}); await page.click('[data-tt-tab="events"],#ttModeEvents').catch(()=>{}); return 'skipped-ui-unknown'; });
 await step('settings: theme row cycles', async () => { await openSettings(); const before = await txt('#themeValue'); await page.click('.set-row[data-set="theme"]'); await page.waitForTimeout(200); const after = await txt('#themeValue'); if (before === after) throw new Error('theme unchanged'); return before + ' → ' + after; });
+await step('app lock: set PIN (mismatch rejected), stays out of the data store', async () => {
+  await openSettings();
+  if (await page.locator('#lockExtras').isVisible()) throw new Error('lock options visible while lock is off');
+  await page.click('[data-set="applock"]'); await page.waitForTimeout(150);
+  if (!(await lockShown())) throw new Error('keypad not shown');
+  await pin('1234'); await pin('9999');
+  if (!(await txt('#lockMsg')).includes('match')) throw new Error('mismatch not reported: ' + await txt('#lockMsg'));
+  await pin('1234'); await pin('1234');
+  if (await lockShown()) throw new Error('keypad still shown after confirming');
+  if ((await txt('#appLockValue')) !== 'On') throw new Error('value not On');
+  if (!(await page.locator('#lockExtras').isVisible())) throw new Error('lock options not shown');
+  const raw = await page.evaluate(() => localStorage.getItem('nexus-applock-v1') || ''); if (!raw || raw.includes('1234')) throw new Error('lock record missing or contains the PIN');
+  if ((await page.evaluate(() => localStorage.getItem('nexus-v1') || '')).includes('"hash"')) throw new Error('PIN hash leaked into the main store'); });
+await step('app lock: Lock now, wrong PIN, right PIN', async () => {
+  await openSettings(); await page.click('[data-set="locknow"]'); await page.waitForTimeout(400);
+  if (!(await lockShown())) throw new Error('not locked');
+  if (await page.evaluate(() => !document.querySelector('.app').inert)) throw new Error('app behind the lock is still interactive');
+  await pin('0000'); if (!(await txt('#lockMsg')).includes('Wrong')) throw new Error('no wrong-PIN message');
+  if (!(await lockShown())) throw new Error('unlocked with wrong PIN');
+  await pin('1234'); if (await lockShown()) throw new Error('right PIN did not unlock'); });
+await step('app lock: locks when you leave (Immediately) and after the delay', async () => {
+  await openSettings(); await page.click('[data-set="lockdelay"]'); await page.click('[data-set="lockdelay"]');
+  if ((await txt('#lockDelayValue')) !== 'Immediately') throw new Error('delay is ' + await txt('#lockDelayValue'));
+  await closeSettings();
+  const away = (h) => page.evaluate((hid) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => hid }); document.dispatchEvent(new Event('visibilitychange')); }, h);
+  await away(true); await page.waitForTimeout(100); if (!(await lockShown())) throw new Error('did not lock when leaving');
+  await away(false); await pin('1234'); if (await lockShown()) throw new Error('could not unlock');
+  await openSettings(); await page.click('[data-set="lockdelay"]'); await closeSettings();   // -> After 1 minute
+  await away(true); await page.waitForTimeout(100); await away(false); await page.waitForTimeout(100);
+  if (await lockShown()) throw new Error('locked after a short absence with a 1-minute delay'); });
+await step('app lock: stays locked after reload; cool-down after 5 wrong PINs', async () => {
+  await page.reload(); await page.waitForTimeout(500);
+  if (!(await lockShown())) throw new Error('not locked after reload');
+  for (let i = 0; i < 5; i++) await pin('1111');
+  if (!(await txt('#lockMsg')).includes('Too many')) throw new Error('no cool-down: ' + await txt('#lockMsg'));
+  await pin('1234'); if (!(await lockShown())) throw new Error('unlocked during cool-down');
+  await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('nexus-applock-v1')); c.until = 0; c.fails = 0; localStorage.setItem('nexus-applock-v1', JSON.stringify(c)); });
+  await page.reload(); await page.waitForTimeout(500); await pin('1234'); if (await lockShown()) throw new Error('could not unlock after cool-down'); });
+await step('app lock: change PIN, then turn off', async () => {
+  await openSettings(); await page.click('[data-set="lockchange"]'); await pin('1234'); await pin('5678'); await pin('5678');
+  if (await lockShown()) throw new Error('change flow did not finish');
+  await page.click('[data-set="locknow"]'); await page.waitForTimeout(400); await pin('1234'); if (!(await lockShown())) throw new Error('old PIN still works'); await pin('5678'); if (await lockShown()) throw new Error('new PIN rejected');
+  await openSettings(); await page.click('[data-set="applock"]'); await pin('5678');
+  if ((await txt('#appLockValue')) !== 'Off') throw new Error('not off'); if (await page.evaluate(() => localStorage.getItem('nexus-applock-v1'))) throw new Error('lock record still stored');
+  if (await page.locator('#lockExtras').isVisible()) throw new Error('options still visible'); });
 await step('events: add 2, open edit, delete one', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('[data-tt-mode="events"]');
   await page.click('#btnAddEvent'); await page.fill('#e-title', 'Exam'); await page.fill('#e-date', '2026-12-01'); await page.fill('#e-time', '10:00'); await page.click('#saveEvent'); await expectText('#eventList', 'Exam');
@@ -267,6 +322,13 @@ await step('wipe all data (3 confirmations) + app still boots', async () => {
   const raw = await page.evaluate(() => localStorage.getItem('nexus-v1') || ''); if (raw.includes('Ada') || raw.includes('Test Manga')) throw new Error('data survived wipe');
   const media = await page.evaluate(() => new Promise((res) => { const r = indexedDB.databases ? indexedDB.databases() : Promise.resolve([]); r.then(async (dbs) => { let n = 0; for (const d of dbs) { await new Promise((ok) => { const q = indexedDB.open(d.name); q.onsuccess = () => { const db = q.result; try { const tx = db.transaction(db.objectStoreNames[0]); const c = tx.objectStore(db.objectStoreNames[0]).count(); c.onsuccess = () => { n += c.result; db.close(); ok(); }; } catch { db.close(); ok(); } }; q.onerror = ok; }); } res(n); }); }));
   return 'media blobs left=' + media; });
+await step('app lock: Forgot PIN erases data and removes the lock', async () => {
+  await openSettings(); await page.click('[data-set="applock"]'); await pin('2468'); await pin('2468'); await closeSettings();
+  await page.reload(); await page.waitForTimeout(500);
+  if (!(await lockShown())) throw new Error('not locked'); await page.click('#lockForgot'); await page.waitForTimeout(1200);
+  if (await lockShown()) throw new Error('still locked after reset');
+  if (await page.evaluate(() => localStorage.getItem('nexus-applock-v1'))) throw new Error('lock record survived');
+  if ((await page.evaluate(() => localStorage.getItem('nexus-v1') || '')).includes('Buy milk')) throw new Error('data survived'); });
 await step('no uncaught errors', async () => { if (errs.length) throw new Error(errs.slice(0, 3).join(' ;; ')); });
 if (process.env.COVER) {
   const cov = await page.coverage.stopJSCoverage(); const seen = new Map();

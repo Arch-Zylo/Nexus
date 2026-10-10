@@ -20,6 +20,8 @@ export class Shell extends Component {
       btn.onclick = () => this.navigate(btn.dataset.go, btn);
     });
     Dom.byId('menuBtn')?.addEventListener('click', this.toggleSettings);
+    Dom.byId('drawerScrim')?.addEventListener('click', this.closeSettings);
+    Dom.byId('drawerClose')?.addEventListener('click', this.closeSettings);
     document.querySelectorAll('[data-go-chill]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelector(`.rail-chill [data-go="${btn.dataset.goChill}"]`)?.click();
@@ -44,17 +46,13 @@ export class Shell extends Component {
     const ne = Dom.byId('noteEditor');
     if (ne && !ne.hidden) { this.app.notes.closeNoteEditor(); this.app.overlays.release(this.app.notes.closeNoteEditor); }
     this.app.passwords.hidePassPanel();
-    if (v !== 'config') this.lastNav = { go: v, mode: this.state.mode };
     document.querySelectorAll('.rail-btn').forEach(b => b.classList.remove('active'));
     const rail = this.state.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)';
     (btn || document.querySelector(`${rail} .rail-btn[data-go="${v}"]`))?.classList.add('active');
-    const menu = Dom.byId('menuBtn');
-    if (menu) { menu.classList.toggle('active', v === 'config'); menu.setAttribute('aria-expanded', String(v === 'config')); menu.setAttribute('aria-label', v === 'config' ? 'Close settings' : 'Open settings'); }
     document.querySelectorAll('.view').forEach(s => s.classList.remove('on'));
     Dom.byId('view-'+v).classList.add('on');
     if (v === 'timetable') this.app.timetable.setTtMode(this.app.timetable.ttMode);
     if (v === 'wallet') this.app.wallet.drawWallet();
-    if (v === 'config') { this.app.settings.refreshSettingsUI(); this.app.passwords.hidePassPanel(); this.app.mode.hideModePanel(); }
     if (v === 'chome') this.app.chillHome.drawChillHome();
     if (v === 'music') this.app.music.drawMusic();
     if (v === 'watch') this.app.video.drawWatch();
@@ -63,12 +61,37 @@ export class Shell extends Component {
     this.app.overlays.recordNav({ go: v, mode: this.state.mode });
   }
 
-  /** Hamburger button: opens Settings; tapping it again returns to the screen you came from. */
-  toggleSettings() {
-    if (!Dom.byId('view-config')?.classList.contains('on')) { this.navigate('config'); return; }
-    const home = this.state.mode === 'chill' ? 'chome' : 'home';
-    const back = this.lastNav && this.lastNav.mode === this.state.mode ? this.lastNav.go : home;
-    this.navigate(back);
+  /* Settings drawer: slides in from the left over the current screen (the ☰ button, scrim tap, ✕ or Back closes it) */
+  openSettings() {
+    const d = Dom.byId('settingsDrawer');
+    if (!d || this.settingsOpen) return;
+    this.settingsOpen = true;
+    this.app.passwords.hidePassPanel();
+    this.app.mode.hideModePanel();
+    this.app.settings.refreshSettingsUI();
+    Dom.byId('view-config').scrollTop = 0;
+    d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
+    Dom.byId('drawerScrim').classList.add('open');
+    this.syncMenuBtn();
+    this.app.overlays.open(this.hideSettings);
+  }
+
+  /** Visuals only — the overlay stack calls this when Back closes the drawer. */
+  hideSettings() {
+    this.settingsOpen = false;
+    const d = Dom.byId('settingsDrawer');
+    if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
+    Dom.byId('drawerScrim')?.classList.remove('open');
+    this.syncMenuBtn();
+  }
+
+  closeSettings() { if (this.settingsOpen) this.app.overlays.close(this.hideSettings); }
+  toggleSettings() { this.settingsOpen ? this.closeSettings() : this.openSettings(); }
+
+  syncMenuBtn() {
+    const m = Dom.byId('menuBtn'); if (!m) return;
+    m.classList.toggle('active', !!this.settingsOpen);
+    m.setAttribute('aria-expanded', String(!!this.settingsOpen));
   }
 
   /* Clock + greeting */

@@ -1,5 +1,5 @@
 import { Component } from '../core/Component.js';
-import { APP_VERSION, BACKUP_KEY, KEY } from '../core/constants.js';
+import { APP_VERSION, BACKUP_KEY, LOCK_KEY, KEY } from '../core/constants.js';
 import { Platform } from '../core/Platform.js';
 import { Util } from '../core/Util.js';
 import { MangaModel } from '../features/chill/manga/MangaModel.js';
@@ -101,19 +101,25 @@ export class BackupService extends Component {
       if (msg) { msg.textContent = 'Wipe cancelled.'; msg.style.color = 'var(--fog)'; }
       return;
     }
-    try { [KEY, BACKUP_KEY, BACKUP_KEY + '-ts', 'nexus_mg_mode'].forEach(k => localStorage.removeItem(k)); } catch {}
+    await this.performWipe();
+    this.app.passwords.hidePassPanel();
+    this.app.settings.refreshSettingsUI();
+    const msg2 = Dom.byId('dataMsg');
+    if (msg2) { msg2.textContent = 'All data wiped — including media files and the on-device backup.'; msg2.style.color = 'var(--coral)'; }
+  }
+
+  /** The actual erase (no prompts). Also used by "Forgot PIN" on the lock screen. */
+  async performWipe() {
+    try { [KEY, BACKUP_KEY, BACKUP_KEY + '-ts', 'nexus_mg_mode', LOCK_KEY].forEach(k => localStorage.removeItem(k)); } catch {}
     try { await this.app.mediaDb.clearAll(); } catch {}
     try { this.app.audio.chillAudio.pause(); this.app.audio.chillAudio.removeAttribute('src'); Dom.byId('miniPlayer').hidden = true; } catch {}
     this.app.thumbs.thumbUrls.forEach(u => URL.revokeObjectURL(u)); this.app.thumbs.thumbUrls.clear(); this.app.thumbs.thumbBad.clear();
+    try { this.app.lock.cfg = null; } catch {}      // the lock key was just removed above
     this.state = this.app.store.defaultStore();
     this.app.store.save();
     this.app.theme.applyTheme('night');
     this.app.theme.applyStyle('soft');
     this.app.boot();
-    this.app.passwords.hidePassPanel();
-    this.app.settings.refreshSettingsUI();
-    const msg = Dom.byId('dataMsg');
-    if (msg) { msg.textContent = 'All data wiped — including media files and the on-device backup.'; msg.style.color = 'var(--coral)'; }
   }
 
   async doExport() {

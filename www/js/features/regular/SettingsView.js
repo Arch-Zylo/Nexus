@@ -50,10 +50,14 @@ export class SettingsView extends Component {
       else if (action === 'classnotify') this.app.notifications.toggleClassNotify();
       else if (action === 'classnotifylead') this.app.notifications.cycleClassNotifyLead();
       else if (action === 'passwords') this.app.passwords.showPassPanel();
+      else if (action === 'applock') this.app.lock.toggle();
+      else if (action === 'lockchange') this.app.lock.changePin();
+      else if (action === 'lockdelay') this.app.lock.cycleDelay();
+      else if (action === 'locknow') this.app.lock.lockNow();
       else if (action === 'mode') {
-        // Same behaviour as the Theme row: one tap flips it, you stay in Settings
+        // Same behaviour as the Theme row: one tap flips it, the drawer stays open
         this.app.mode.applyMode(this.state.mode === 'chill' ? 'regular' : 'chill');
-        this.app.shell.navigate('config');
+        this.refreshSettingsUI();
       }
       else if (action === 'export') this.app.backup.doExport();
       else if (action === 'import') {
@@ -93,6 +97,13 @@ export class SettingsView extends Component {
     set('themeValue', THEMES.find(x => x.id === (this.state.theme || 'night'))?.label || 'Night');
     set('styleValue', STYLES.find(x => x.id === (this.state.style || 'soft'))?.label || 'Soft');
     set('nameValue', this.state.name || 'Not set');
+    set('drawerName', this.state.name || 'Student');
+    set('drawerSchool', this.state.school || 'Set your name & school below');
+    set('drawerAvatar', ((this.state.name || 'N').trim()[0] || 'N').toUpperCase());
+    const lk = this.app.lock;
+    set('appLockValue', lk && lk.enabled ? 'On' : 'Off');
+    set('lockDelayValue', lk && lk.enabled ? lk.delayInfo().label : '');
+    const ex = Dom.byId('lockExtras'); if (ex) ex.hidden = !(lk && lk.enabled);
     set('schoolValue', this.state.school || 'Not set');
     set('currencyValue', this.state.currency || '$');
     set('timefmtValue', this.state.timefmt === '24' ? '24-hour' : '12-hour');

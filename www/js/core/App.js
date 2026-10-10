@@ -6,6 +6,7 @@ import { ModeManager } from './ModeManager.js';
 import { BottomSheet } from './BottomSheet.js';
 import { Dialog } from './Dialog.js';
 import { TermsGate } from './TermsGate.js';
+import { AppLock } from './AppLock.js';
 import { Shell } from './Shell.js';
 import { NotificationService } from './NotificationService.js';
 import { MediaDB } from '../storage/MediaDB.js';
@@ -55,6 +56,7 @@ export class App {
     this.sheet = new BottomSheet(this);
     this.dialog = new Dialog(this);
     this.terms = new TermsGate(this);
+    this.lock = new AppLock(this);
     this.shell = new Shell(this);
     this.notifications = new NotificationService(this);
     this.mediaDb = new MediaDB(this);
@@ -116,6 +118,7 @@ export class App {
     this.dialog.init();
     this.backup.init();
     this.terms.init();
+    this.lock.init();
     this.boot();
   }
 

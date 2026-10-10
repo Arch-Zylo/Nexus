@@ -74,8 +74,7 @@ export class OverlayManager extends Component {
     this.navRestoring = true;
     try {
       if (n.mode !== this.state.mode) this.app.mode.applyMode(n.mode);
-      if (n.go === 'config') this.app.shell.navigate('config');   // Settings has no rail button any more
-      else document.querySelector(`${n.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)'} .rail-btn[data-go="${n.go}"]`)?.click();
+      document.querySelector(`${n.mode === 'chill' ? '.rail-chill' : '.rail:not(.rail-chill)'} .rail-btn[data-go="${n.go}"]`)?.click();
     } finally { this.navRestoring = false; }
     this.navCur = { go: n.go, mode: n.mode };
   }
@@ -95,12 +94,18 @@ export class OverlayManager extends Component {
     this.nativeBackReady = true; this.useHist = false;
     try {
       const r = AppP.addListener('backButton', () => {
+        if (this.app.lock && this.app.lock.locked) { this.exitOrWarn(AppP); return; }   // locked: Back must not step through screens
         try { if (this.goBackOnce()) return; } catch (e) { console.warn('Nexus: back failed', e); }
-        const now = Date.now();
-        if (now - this.exitArmed < 2200) { try { AppP.exitApp(); } catch {} return; }
-        this.exitArmed = now; this.app.toast.show('Press back again to exit', 'info', 2000);
+        this.exitOrWarn(AppP);
       });
+
       if (r && r.catch) r.catch(() => { this.useHist = true; this.nativeBackReady = false; });
     } catch (e) { this.useHist = true; this.nativeBackReady = false; }
+  }
+
+  exitOrWarn(AppP) {
+    const now = Date.now();
+    if (now - this.exitArmed < 2200) { try { AppP.exitApp(); } catch {} return; }
+    this.exitArmed = now; this.app.toast.show('Press back again to exit', 'info', 2000);
   }
 }

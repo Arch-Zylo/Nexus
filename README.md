@@ -24,7 +24,7 @@ as an installable Android app.
   birthdays.
 - **Understand where your money goes.** Track accounts, income, expenses, loans
   and transfers, and see your spending broken down by category.
-- **Keep your logins safe.** A built-in password manager lives in Settings.
+- **Keep your logins safe.** A built-in password manager lives in Settings, and you can turn on an optional 4-digit PIN lock (**Settings → Security → App lock**) that asks for the PIN when Nexus opens and when you return after being away (immediately, 1 minute or 5 minutes). It keeps other people out of the app; it does not encrypt your data. Forgot the PIN? The only way back in is to erase the app's data from the lock screen.
 
 ## Features
 
@@ -36,7 +36,7 @@ as an installable Android app.
 | **People** | Contacts with birthdays and ages |
 | **Notes** | Quick notes |
 | **Wallet** | Multiple accounts, income and expenses, loans, transfers, spending by category |
-| **Settings** (☰ button in the top bar; tap again to go back) | Themes and styles, name and school, currency, 12/24-hour time, reminders, spending options, backup (export/import) and password manager |
+| **Settings** (☰ button in the top bar — slides in as a drawer over the current screen) | Themes and styles, name and school, currency, 12/24-hour time, reminders, spending options, backup (export/import), password manager and the optional app lock |
 
 ## What's new
 
@@ -102,6 +102,7 @@ www/                         the app (served as-is by the browser and by Capacit
     ui/                      ProgressCard, ListAnimator, Motion, Icons
     features/regular/        HomeView, TimetableView, EventsView, TasksView, PeopleView,
                              NotesView, WalletView, PasswordsView, SettingsView, SpendingService
+                             (core/AppLock.js — optional PIN lock)
     features/chill/          ChillHome, MusicLibrary, AudioPlayer, NowPlaying, VideoPlayer,
                              ReadView, MangaReader, StoriesView, MediaImporter
     features/chill/manga/    MangaImporter, SeriesView, MangaModel
