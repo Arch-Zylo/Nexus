@@ -150,7 +150,7 @@ export class AppLock extends Component {
     const cb = this.onDone; this.onDone = null;
     const wasUnlock = this.mode === 'unlock';
     this.hide();
-    if (wasUnlock) { try { this.app.settings.refreshSettingsUI(); } catch {} return; }
+    if (wasUnlock) { try { this.app.settings.refreshSettingsUI(); } catch {} this.app.greeter.tryGreet(); return; }
     if (cb && ok) cb();
   }
 

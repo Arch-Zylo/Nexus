@@ -32,8 +32,16 @@ const progWatcher = (key) => page.evaluate((k) => { window.__prog = window.__pro
 const progSeen = async (key) => { const a = await page.evaluate((k) => window.__prog?.[k] || [], key); return a.length ? `${a.length} samples, last: ${a[a.length - 1]}` : null; };
 
 if (process.env.COVER) await page.coverage.startJSCoverage({ resetOnNavigation: false });
+await page.addInitScript(() => { window.__spoken = []; try { speechSynthesis.getVoices = () => []; speechSynthesis.speak = (u) => { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend({}), 0); }; speechSynthesis.cancel = () => {}; } catch {} });
+const spoken = () => page.evaluate(() => window.__spoken.slice());
 await page.goto(url); await page.waitForTimeout(600);
 await step('boot + accept terms', async () => { await page.check('#tosAgree'); await page.click('#tosAccept'); await page.waitForTimeout(300); if (await page.locator('#tosGate').isVisible()) throw new Error('gate still visible'); });
+await step('greeting: spoken once after the terms, never again while the app stays open', async () => {
+  await page.waitForTimeout(1600);
+  let sp = await spoken(); if (sp.length !== 1 || !sp[0].includes('welcome back')) throw new Error('expected one greeting, got ' + JSON.stringify(sp));
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.click('.rail:not(.rail-chill) [data-go="tasks"]'); await page.click('.rail:not(.rail-chill) [data-go="home"]'); await page.waitForTimeout(900);
+  sp = await spoken(); if (sp.length !== 1) throw new Error('greeting repeated: ' + JSON.stringify(sp)); });
 await step('regular nav views', async () => {
   for (const go of ['home','timetable','tasks','people','notes','wallet']) {
     await page.click(`.rail:not(.rail-chill) [data-go="${go}"]`); await page.waitForTimeout(120);
@@ -121,11 +129,13 @@ await step('app lock: locks when you leave (Immediately) and after the delay', a
 await step('app lock: stays locked after reload; cool-down after 5 wrong PINs', async () => {
   await page.reload(); await page.waitForTimeout(500);
   if (!(await lockShown())) throw new Error('not locked after reload');
+  await page.waitForTimeout(1200); if ((await spoken()).length) throw new Error('greeted while still locked');
   for (let i = 0; i < 5; i++) await pin('1111');
   if (!(await txt('#lockMsg')).includes('Too many')) throw new Error('no cool-down: ' + await txt('#lockMsg'));
   await pin('1234'); if (!(await lockShown())) throw new Error('unlocked during cool-down');
   await page.evaluate(() => { const c = JSON.parse(localStorage.getItem('nexus-applock-v1')); c.until = 0; c.fails = 0; localStorage.setItem('nexus-applock-v1', JSON.stringify(c)); });
-  await page.reload(); await page.waitForTimeout(500); await pin('1234'); if (await lockShown()) throw new Error('could not unlock after cool-down'); });
+  await page.reload(); await page.waitForTimeout(500); await pin('1234'); if (await lockShown()) throw new Error('could not unlock after cool-down');
+  await page.waitForTimeout(1500); if ((await spoken()).length !== 1) throw new Error('no greeting after unlocking: ' + JSON.stringify(await spoken())); });
 await step('app lock: change PIN, then turn off', async () => {
   await openSettings(); await page.click('[data-set="lockchange"]'); await pin('1234'); await pin('5678'); await pin('5678');
   if (await lockShown()) throw new Error('change flow did not finish');
@@ -133,6 +143,14 @@ await step('app lock: change PIN, then turn off', async () => {
   await openSettings(); await page.click('[data-set="applock"]'); await pin('5678');
   if ((await txt('#appLockValue')) !== 'Off') throw new Error('not off'); if (await page.evaluate(() => localStorage.getItem('nexus-applock-v1'))) throw new Error('lock record still stored');
   if (await page.locator('#lockExtras').isVisible()) throw new Error('options still visible'); });
+await step('greeting: can be switched off in Settings (and personalised with the name)', async () => {
+  await openSettings(); await page.click('[data-set="name"]'); await page.waitForTimeout(100);
+  if ((await txt('#greetValue')) !== 'On') throw new Error('greeting should default to On');
+  await page.click('[data-set="greet"]'); if ((await txt('#greetValue')) !== 'Off') throw new Error('did not switch off');
+  await page.reload(); await page.waitForTimeout(1600); if ((await spoken()).length) throw new Error('greeted although switched off');
+  await openSettings(); await page.click('[data-set="greet"]'); await page.waitForTimeout(1500);
+  const sp = await spoken(); if (sp.length !== 1) throw new Error('switching on should preview once: ' + JSON.stringify(sp));
+  if (!/welcome back, x\./.test(sp[0])) throw new Error('name missing from greeting: ' + sp[0]); });
 await step('events: add 2, open edit, delete one', async () => {
   await page.click('.rail:not(.rail-chill) [data-go="timetable"]'); await page.click('[data-tt-mode="events"]');
   await page.click('#btnAddEvent'); await page.fill('#e-title', 'Exam'); await page.fill('#e-date', '2026-12-01'); await page.fill('#e-time', '10:00'); await page.click('#saveEvent'); await expectText('#eventList', 'Exam');

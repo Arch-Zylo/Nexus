@@ -34,6 +34,7 @@ export class Store {
         d.spendPeriod = ['all','week','month','year'].includes(d.spendPeriod) ? d.spendPeriod : 'all';
         d.spendResetTs = Number(d.spendResetTs) || 0;
         d.notify = !!d.notify;
+        d.greet = d.greet !== false;
         d.classNotify = !!d.classNotify;
         d.classNotifyLead = Number(d.classNotifyLead) || 10;
         d.mode = 'regular'; // the app always opens in Regular mode
@@ -47,7 +48,7 @@ export class Store {
       classes: [], events: [], tasks: [], people: [], notes: [],
       accounts: [], loans: [], passwords: [], log: [],
       theme: 'night', style: 'soft',
-      name: '', school: '', currency: '$', timefmt: '12', notify: false,
+      name: '', school: '', currency: '$', timefmt: '12', notify: false, greet: true,
       classNotify: false, classNotifyLead: 10,
       customCats: [], spendPeriod: 'all', spendResetTs: 0,
       mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
@@ -68,7 +69,7 @@ export class Store {
       classes: [], events: [], tasks: [], people: [], notes: [],
       accounts: [], loans: [], passwords: [], log: [],
       theme: 'night', style: 'soft',
-      name: '', school: '', currency: '$', timefmt: '12', notify: false,
+      name: '', school: '', currency: '$', timefmt: '12', notify: false, greet: true,
       classNotify: false, classNotifyLead: 10,
       customCats: [], spendPeriod: 'all', spendResetTs: 0,
       mode: 'regular', chillMedia: [], chillStories: [], chillProgress: {}
@@ -89,6 +90,7 @@ export class Store {
     s.chillProgress = o.chillProgress && typeof o.chillProgress === 'object' && !Array.isArray(o.chillProgress) ? o.chillProgress : {};
     s.spendPeriod = ['all', 'week', 'month', 'year'].includes(o.spendPeriod) ? o.spendPeriod : 'all';
     s.spendResetTs = Number(o.spendResetTs) || 0;
+    s.greet = o.greet !== false;
     s.classNotify = !!o.classNotify;
     s.classNotifyLead = Number(o.classNotifyLead) || 10;
     s.mode = 'regular';

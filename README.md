@@ -24,6 +24,7 @@ as an installable Android app.
   birthdays.
 - **Understand where your money goes.** Track accounts, income, expenses, loans
   and transfers, and see your spending broken down by category.
+- **A greeting when you open the app.** Nexus says hello once each time it is opened (not again while it stays open, and not when you switch back to it). It uses the device's built-in speech with a soft, playful line and your name. To use your own clip instead, put an audio file at `www/assets/greeting.mp3` and it plays in place of the built-in voice. Switch it off in **Settings → Preferences → Greeting voice**.
 - **Keep your logins safe.** A built-in password manager lives in Settings, and you can turn on an optional 4-digit PIN lock (**Settings → Security → App lock**) that asks for the PIN when Nexus opens and when you return after being away (immediately, 1 minute or 5 minutes). It keeps other people out of the app; it does not encrypt your data. Forgot the PIN? The only way back in is to erase the app's data from the lock screen.
 
 ## Features

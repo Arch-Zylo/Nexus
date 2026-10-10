@@ -47,6 +47,7 @@ export class TermsGate extends Component {
   hideTos() {
     const gate = Dom.byId('tosGate');
     if (gate) gate.hidden = true;
+    this.app.greeter?.tryGreet();
   }
 
   /* First-run terms gate — previously shown after the splash faded out */
